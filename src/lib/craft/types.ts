@@ -52,3 +52,40 @@ export interface TimelineSettings {
   endHour: number // Default 22 (10 PM)
   hourHeight: number // Pixels per hour, default 60
 }
+
+// ============================================
+// Kanban Types
+// ============================================
+
+// Task scopes for GET /tasks endpoint
+export type TaskScope = 'active' | 'upcoming' | 'inbox' | 'logbook'
+
+// Task location types
+export interface TaskLocation {
+  type: 'inbox' | 'dailyNote'
+  date?: string // YYYY-MM-DD for dailyNote tasks
+}
+
+// Craft task from GET /tasks response
+export interface CraftTask {
+  id: string
+  markdown: string
+  taskInfo?: {
+    state?: 'todo' | 'done' | 'canceled'
+    scheduleDate?: string
+    deadlineDate?: string
+  }
+  location?: TaskLocation
+}
+
+// Kanban column identifiers
+export type KanbanColumnId = 'inbox' | 'backlog' | 'today'
+
+// Task update payload for PUT /tasks
+export interface TaskUpdate {
+  taskInfo?: {
+    state?: 'todo' | 'done' | 'canceled'
+    scheduleDate?: string // Use empty string '' to clear
+  }
+  markdown?: string
+}

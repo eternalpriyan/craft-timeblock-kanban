@@ -1,4 +1,4 @@
-import { CraftBlock } from './types'
+import { CraftBlock, CraftTask, TaskScope, TaskLocation, TaskUpdate } from './types'
 
 const PROXY_BASE = '/api/craft'
 
@@ -132,5 +132,105 @@ export async function toggleTask(
 
   if (!response.ok) {
     throw new Error(`Failed to update task: ${response.status}`)
+  }
+}
+
+// ============================================
+// Kanban API Functions
+// ============================================
+
+// Fetch tasks by scope
+export async function fetchTasks(scope: TaskScope): Promise<CraftTask[]> {
+  const response = await fetch(`${PROXY_BASE}/tasks?scope=${scope}`)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch tasks: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.items || []
+}
+
+// Update task (scheduleDate, state, markdown)
+export async function updateTask(
+  taskId: string,
+  updates: TaskUpdate
+): Promise<void> {
+  const response = await fetch(`${PROXY_BASE}/tasks`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tasksToUpdate: [{ id: taskId, ...updates }],
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error('[craft/api] updateTask failed:', response.status, text)
+    throw new Error(`Failed to update task: ${response.status}`)
+  }
+}
+
+// Move daily note task to a different date (physical block relocation)
+export async function moveDailyNoteTask(
+  taskId: string,
+  targetDate: string
+): Promise<void> {
+  const response = await fetch(`${PROXY_BASE}/blocks/move`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      blockIds: [taskId],
+      position: { position: 'end', date: targetDate },
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error('[craft/api] moveDailyNoteTask failed:', response.status, text)
+    throw new Error(`Failed to move task: ${response.status}`)
+  }
+}
+
+// Create new task
+export async function createTask(
+  markdown: string,
+  location: TaskLocation,
+  scheduleDate?: string
+): Promise<CraftTask> {
+  const response = await fetch(`${PROXY_BASE}/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tasks: [
+        {
+          markdown,
+          location,
+          ...(scheduleDate && { taskInfo: { scheduleDate } }),
+        },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error('[craft/api] createTask failed:', response.status, text)
+    throw new Error(`Failed to create task: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.items?.[0]
+}
+
+// Delete tasks
+export async function deleteTasks(taskIds: string[]): Promise<void> {
+  const response = await fetch(`${PROXY_BASE}/tasks`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idsToDelete: taskIds }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete tasks: ${response.status}`)
   }
 }

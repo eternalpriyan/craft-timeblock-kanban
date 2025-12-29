@@ -7,7 +7,7 @@ A Vercel-deployed Next.js app that provides Timeblock and Kanban views for Craft
 **Live routes:**
 - `/` - Cover/landing page
 - `/login` - Supabase email OTP authentication
-- `/app` - Protected main app (timeblock + kanban views - WIP)
+- `/app` - Protected main app (timeblock + kanban views)
 - `/auth/callback` - OAuth callback handler
 - `/api/craft/*` - Craft API proxy (planned)
 
@@ -37,18 +37,23 @@ src/
 │       ├── craft/[...path]/route.ts  # Craft API proxy
 │       └── settings/route.ts         # User settings CRUD
 ├── components/
-│   └── timeblock/
-│       ├── Timeline.tsx          # Main timeline component with interactions
-│       ├── TimeblockCard.tsx     # Individual timeblock (drag/resize/swipe)
-│       ├── TimeAxis.tsx          # Hour labels on left
-│       ├── NowLine.tsx           # Current time indicator
-│       ├── UnscheduledList.tsx   # Tasks without times
-│       ├── InlineEditor.tsx      # Inline create for blocks/tasks
-│       └── SettingsModal.tsx     # Theme, API URL, timeline range
+│   ├── timeblock/
+│   │   ├── Timeline.tsx          # Main timeline component with interactions
+│   │   ├── TimeblockCard.tsx     # Individual timeblock (drag/resize/swipe)
+│   │   ├── TimeAxis.tsx          # Hour labels on left
+│   │   ├── NowLine.tsx           # Current time indicator
+│   │   ├── UnscheduledList.tsx   # Tasks without times
+│   │   ├── InlineEditor.tsx      # Inline create for blocks/tasks
+│   │   └── SettingsModal.tsx     # Tabbed settings (General, Timeblock, Kanban)
+│   └── kanban/
+│       ├── Board.tsx             # Main board with 3 columns (Inbox, Backlog, Today)
+│       ├── Column.tsx            # Individual column with drop zone
+│       ├── TaskCard.tsx          # Draggable task card with checkbox
+│       └── CreateTaskModal.tsx   # New task modal with date picker
 ├── lib/
 │   ├── craft/
-│   │   ├── api.ts                # Craft API client (fetch, toggle, delete, insert, update)
-│   │   ├── types.ts              # CraftBlock, Timeblock, UnscheduledTask types
+│   │   ├── api.ts                # Craft API client (blocks + tasks CRUD)
+│   │   ├── types.ts              # CraftBlock, Timeblock, CraftTask types
 │   │   ├── time-parser.ts        # ⭐ EDIT HERE: All time parsing patterns & functions
 │   │   └── parse-timeblocks.ts   # Block → Timeblock/Task conversion
 │   ├── settings/
@@ -85,10 +90,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon_key>
   - Overlapping blocks display side-by-side
   - Dark/light mode with persistence
 - [x] Settings (theme, API URL, timeline range) saved to Supabase user metadata
+- [x] Kanban view fully integrated:
+  - Standard 3-column layout (Inbox, Backlog, Today)
+  - Drag-drop with task type constraints (inbox vs daily note tasks)
+  - Collapsible columns (accordion style, inbox/backlog collapsed by default)
+  - Click checkbox to complete, swipe/delete to remove
+  - Inline task editing (double-click or pencil icon)
+  - Task reordering within columns via drag-drop
+  - Create task modal with type selection and date picker
+  - Optimistic UI updates (no page reload on actions)
+  - Press V to toggle views, R to reload
+- [x] Tabbed Settings modal (General, Timeblock, Kanban)
 
 **Pending:**
-- [ ] Integrate kanban view from craft-kanban repo
-- [ ] Unify into single app experience with view switching
+- [ ] 7-day view for kanban (Mon-Sun columns)
 
 ## Code Principles
 
@@ -182,32 +197,34 @@ Both are vanilla JS single-file apps that:
 3. Share auth state and Craft API URL config
 4. Unified settings/preferences storage
 
-### Kanban Integration Notes
+### Kanban Task Types (IMPORTANT)
 
-**Columns:**
-- Standard view: Inbox, Backlog, Today
-- 7-day view: Inbox, Backlog, Mon-Sun, Future
+Craft has two distinct task location types with different drag-drop rules:
 
-**Data sources (4 parallel fetches):**
-- `GET /tasks?scope=active` - Active tasks
-- `GET /tasks?scope=upcoming` - Scheduled tasks
-- `GET /tasks?scope=inbox` - Inbox tasks
-- `GET /tasks?scope=logbook` - Completed tasks
+**Inbox Tasks** (`location.type === 'inbox'`)
+- Central tasks in Craft's Inbox, not tied to any document
+- **Flexible:** Can move between ALL columns
+- When dragged to a date column → `scheduleDate` updates
+- Task **stays in Inbox** — only metadata changes
+- Can be dragged back to Inbox column (removes scheduleDate)
 
-**Reuse from timeblock:**
-- `lib/settings/context.tsx` - Theme, API URL
-- `lib/craft/api.ts` - Extend with `fetchTasks(scope)`
-- `lib/craft/types.ts` - Add `KanbanTask` type
-- `components/timeblock/SettingsModal.tsx` - Shared settings UI
+**Daily Note Tasks** (`location.type === 'dailyNote'`)
+- Embedded markdown blocks inside daily note pages
+- **Limited:** Can only move between DATE columns (Today, Backlog)
+- **CANNOT be dragged to Inbox** — API constraint, causes orphaning
+- Moving between dates = physical block relocation via `PUT /blocks/move`
 
-**New components needed:**
-- `components/kanban/Board.tsx` - Main board with columns
-- `components/kanban/Column.tsx` - Individual column
-- `components/kanban/TaskCard.tsx` - Draggable task card
-- `components/kanban/CreateTask.tsx` - New task modal
+### Kanban API Functions
 
-**Interactions:**
-- Drag-drop between columns
-- Click checkbox to complete
-- Spacebar = quick note to today
-- Shift+Space = new task with date picker
+```typescript
+// lib/craft/api.ts
+fetchTasks(scope: TaskScope)           // GET /tasks?scope=...
+updateTask(taskId, updates)            // PUT /tasks (scheduleDate, state)
+moveDailyNoteTask(taskId, targetDate)  // PUT /blocks/move
+createTask(markdown, location, date?)  // POST /tasks
+deleteTasks(taskIds)                   // DELETE /tasks
+```
+
+### 7-Day View (Future Enhancement)
+
+**Columns:** Inbox | Backlog | Mon-Sun | Future
