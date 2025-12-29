@@ -119,6 +119,18 @@ npm run lint     # ESLint
 
 ## Integration Notes (for Step 2)
 
+### Craft API
+
+Each user provides their own public API URL: `https://connect.craft.do/links/{KEY}/api/v1`
+
+Full API documentation: [docs/craft-api.md](docs/craft-api.md)
+
+Key endpoints:
+- `GET /blocks` - Fetch daily note content (default: today)
+- `POST /blocks` - Insert content
+- `GET /tasks` - Get tasks by scope (active, upcoming, inbox, logbook)
+- `GET /daily-notes/search` - Search across notes
+
 ### Source Repos
 
 Raw index.html files to pull from:
