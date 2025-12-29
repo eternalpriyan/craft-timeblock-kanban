@@ -26,7 +26,7 @@ Always verify rollback operations work before considering a test complete.
 
 ## Servers
 
-- https://connect.craft.do/links/HfiiZ0RexHa/api/v1
+- https://connect.craft.do/links/{key}/api/v1
   API Server for API for Daily Notes & Tasks Daily Notes
 
 ---

@@ -20,11 +20,11 @@ export default function TimeAxis({ startHour, endHour, hourHeight }: TimeAxisPro
   }
 
   return (
-    <div className="absolute left-0 top-0 bottom-0 w-12">
+    <div className="absolute -left-14 top-0 bottom-0 w-14">
       {hours.map((hour) => (
         <div
           key={hour}
-          className="absolute right-3 text-[11px] font-medium text-slate-400 dark:text-slate-500 -translate-y-1/2"
+          className="absolute right-2 text-[11px] font-medium text-slate-400 dark:text-zinc-500 -translate-y-1/2"
           style={{ top: (hour - startHour) * hourHeight }}
         >
           {formatHour(hour)}

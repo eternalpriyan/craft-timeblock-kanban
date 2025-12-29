@@ -1,53 +1,14 @@
 import { CraftBlock, Timeblock, UnscheduledTask, ParsedBlocks } from './types'
-
-// Time pattern: start time - end time: title
-// Handles: 10:00 AM - 11:00 AM Task, 10 AM - 11 AM Task, 10-11 AM: Task, 7:30-8:30: Task
-// Separators: -, –, —, to, ->
-// Task separators: -, :, or just space
-// Minutes optional (defaults to :00)
-// Shared AM/PM: "10-11 AM" means both 10 AM and 11 AM
-const TIME_PATTERN =
-  /^`?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:[-–—]+|to|->|→)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?`?\s*(?:[-–—:]|\s)\s*(.+)$/i
-
-// Task with time pattern: [x] 1:00 PM - 2:00 PM Task name
-const TASK_WITH_TIME_PATTERN =
-  /^\[([ x]?)\]\s*`?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:[-–—]+|to|->|→)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?`?\s*(?:[-–—:]|\s)\s*(.+)$/i
-
-// Todo pattern (no time)
-const TODO_PATTERN = /^\[([ x]?)\]\s*(.+)$/i
-
-// Bullet prefix pattern to strip
-const BULLET_PREFIX = /^(?:[•\-*+]\s+)/
-
-// Highlight wrapper pattern
-const HIGHLIGHT_PATTERN = /<highlight\s+color=["']([^"']+)["']>(.+?)<\/highlight>/is
-
-function parseTime(hours: string, minutes: string | undefined, period: string | undefined): number | null {
-  let h = parseInt(hours, 10)
-  const m = parseInt(minutes || '0', 10)
-
-  if (isNaN(h)) return null
-
-  // Handle 12-hour format
-  if (period) {
-    const p = period.toLowerCase()
-    if (p === 'pm' && h !== 12) h += 12
-    if (p === 'am' && h === 12) h = 0
-  }
-
-  return h + m / 60
-}
-
-function categorizeTask(title: string): Timeblock['category'] {
-  const lower = title.toLowerCase()
-
-  if (/deep work|focus|code|write|develop|build/.test(lower)) return 'work'
-  if (/call|meeting|sync|chat|standup|1:1|interview/.test(lower)) return 'meeting'
-  if (/gym|exercise|workout|run|yoga|walk|health|meditat/.test(lower)) return 'health'
-  if (/lunch|dinner|breakfast|break|personal|family|friend/.test(lower)) return 'personal'
-
-  return 'default'
-}
+import {
+  TIME_PATTERN,
+  TASK_WITH_TIME_PATTERN,
+  TODO_PATTERN,
+  BULLET_PREFIX,
+  stripHighlight,
+  stripCheckbox,
+  parseTime,
+  categorizeTask,
+} from './time-parser'
 
 export function parseBlocks(data: CraftBlock | CraftBlock[] | string): ParsedBlocks {
   const scheduled: Timeblock[] = []
@@ -68,11 +29,10 @@ export function parseBlocks(data: CraftBlock | CraftBlock[] | string): ParsedBlo
     trimmed = trimmed.replace(BULLET_PREFIX, '')
 
     // Check for highlight wrapper and extract color
-    const highlightMatch = trimmed.match(HIGHLIGHT_PATTERN)
-    if (highlightMatch) {
-      highlight = highlightMatch[1]
-      // Replace highlight tags with just the content
-      trimmed = trimmed.replace(HIGHLIGHT_PATTERN, '$2').trim()
+    const { content: strippedContent, color: extractedColor } = stripHighlight(trimmed)
+    if (extractedColor) {
+      highlight = extractedColor
+      trimmed = strippedContent
     }
 
     // First check for task with time (checkbox + time)
@@ -95,7 +55,7 @@ export function parseBlocks(data: CraftBlock | CraftBlock[] | string): ParsedBlo
           title,
           category: categorizeTask(title),
           highlight,
-          originalMarkdown: originalMarkdown || trimmed,
+          originalMarkdown: originalMarkdown || text,
           isTask: true,
           checked: isChecked,
         })
@@ -122,7 +82,7 @@ export function parseBlocks(data: CraftBlock | CraftBlock[] | string): ParsedBlo
           title,
           category: categorizeTask(title),
           highlight,
-          originalMarkdown: originalMarkdown || trimmed,
+          originalMarkdown: originalMarkdown || text,
           isTask: false,
           checked: false,
         })
@@ -138,7 +98,7 @@ export function parseBlocks(data: CraftBlock | CraftBlock[] | string): ParsedBlo
         id: blockId,
         text: todoMatch[2].trim(),
         checked: isChecked,
-        originalMarkdown: originalMarkdown || trimmed,
+        originalMarkdown: originalMarkdown || text,
       })
     }
   }
@@ -161,9 +121,11 @@ export function parseBlocks(data: CraftBlock | CraftBlock[] | string): ParsedBlo
     if (block.markdown) {
       // For task/todo/checkbox listStyle, check if it's a time-based task or unscheduled
       if (block.listStyle === 'task' || block.listStyle === 'todo' || block.listStyle === 'checkbox') {
-        // Strip bullet prefix and checkbox for checking time pattern
-        // Handles: "  - [ ] text" or "- [x] text" or "[ ] text"
-        const strippedText = block.markdown.replace(/^\s*-?\s*\[[ x]?\]\s*/i, '').trim()
+        // Strip bullet prefix, checkbox, AND highlight for checking time pattern
+        let strippedText = stripCheckbox(block.markdown)
+        // Also strip highlight wrapper before checking for time pattern
+        const { content: contentWithoutHighlight } = stripHighlight(strippedText)
+        strippedText = contentWithoutHighlight.trim()
 
         // If no time pattern, treat as unscheduled task
         if (strippedText && !strippedText.match(TIME_PATTERN)) {

@@ -23,18 +23,42 @@ A Vercel-deployed Next.js app that provides Timeblock and Kanban views for Craft
 ```
 src/
 ├── app/
-│   ├── page.tsx              # Cover page
-│   ├── login/page.tsx        # OTP login flow
-│   ├── app/                   # Protected routes
-│   │   ├── page.tsx          # Main app (destination)
+│   ├── layout.tsx                # Root layout
+│   ├── page.tsx                  # Cover page
+│   ├── globals.css               # Tailwind + dark mode config
+│   ├── login/page.tsx            # OTP login flow
+│   ├── app/                      # Protected routes
+│   │   ├── page.tsx              # Entry point (redirects to timeblock-app)
+│   │   ├── timeblock-app.tsx     # Main app shell with settings provider
+│   │   ├── timeblock-view.tsx    # Timeline wrapper with loading states
 │   │   └── logout-button.tsx
-│   └── auth/callback/route.ts # Supabase auth callback
+│   ├── auth/callback/route.ts    # Supabase auth callback
+│   └── api/
+│       ├── craft/[...path]/route.ts  # Craft API proxy
+│       └── settings/route.ts         # User settings CRUD
+├── components/
+│   └── timeblock/
+│       ├── Timeline.tsx          # Main timeline component with interactions
+│       ├── TimeblockCard.tsx     # Individual timeblock (drag/resize/swipe)
+│       ├── TimeAxis.tsx          # Hour labels on left
+│       ├── NowLine.tsx           # Current time indicator
+│       ├── UnscheduledList.tsx   # Tasks without times
+│       ├── InlineEditor.tsx      # Inline create for blocks/tasks
+│       └── SettingsModal.tsx     # Theme, API URL, timeline range
 ├── lib/
+│   ├── craft/
+│   │   ├── api.ts                # Craft API client (fetch, toggle, delete, insert, update)
+│   │   ├── types.ts              # CraftBlock, Timeblock, UnscheduledTask types
+│   │   ├── time-parser.ts        # ⭐ EDIT HERE: All time parsing patterns & functions
+│   │   └── parse-timeblocks.ts   # Block → Timeblock/Task conversion
+│   ├── settings/
+│   │   ├── types.ts              # UserSettings interface + defaults
+│   │   └── context.tsx           # Settings React context + theme application
 │   └── supabase/
-│       ├── client.ts         # Browser client
-│       ├── server.ts         # Server client (RSC/API routes)
-│       └── middleware.ts     # Session refresh + route protection
-└── middleware.ts             # Next.js middleware entry
+│       ├── client.ts             # Browser client
+│       ├── server.ts             # Server client (RSC/API routes)
+│       └── middleware.ts         # Session refresh + route protection
+└── middleware.ts                 # Next.js middleware entry
 ```
 
 ## Environment Variables
@@ -47,17 +71,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon_key>
 
 ## Current Status
 
-**Completed (Step 1):**
+**Completed:**
 - [x] Next.js project setup
 - [x] Supabase email OTP auth with session persistence
 - [x] Cover page → Login → Protected destination flow
 - [x] Middleware for route protection
+- [x] Craft API proxy (`/api/craft/*`)
+- [x] Timeblock view with full interactivity:
+  - Drag to move, resize edges to adjust duration
+  - Click empty space to create (1hr default)
+  - Backspace/Delete or swipe left to delete
+  - Spacebar for new task
+  - Overlapping blocks display side-by-side
+  - Dark/light mode with persistence
+- [x] Settings (theme, API URL, timeline range) saved to Supabase user metadata
 
-**Pending (Step 2):**
-- [ ] Integrate timeblock view from craft-timeblock repo
-- [ ] Integrate kanban view from craft-kanban repo  
+**Pending:**
+- [ ] Integrate kanban view from craft-kanban repo
 - [ ] Unify into single app experience with view switching
-- [ ] Add `/api/craft/*` proxy routes to fix CORS
 
 ## Code Principles
 

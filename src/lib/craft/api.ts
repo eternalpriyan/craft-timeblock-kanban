@@ -69,8 +69,12 @@ export async function updateBlock(
   })
 
   if (!response.ok) {
+    const text = await response.text()
+    console.error('[craft/api] updateBlock failed:', response.status, text)
     throw new Error(`Failed to update block: ${response.status}`)
   }
+
+  await response.json()
 }
 
 // Insert a new block

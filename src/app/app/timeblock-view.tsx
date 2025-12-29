@@ -1,32 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useSettings } from '@/lib/settings/context'
 import Timeline from '@/components/timeblock/Timeline'
 
 export default function TimeblockView() {
-  const [hasApiUrl, setHasApiUrl] = useState<boolean | null>(null)
+  const { settings, loading } = useSettings()
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    checkApiUrl()
-  }, [])
-
-  async function checkApiUrl() {
-    try {
-      const res = await fetch('/api/settings')
-      if (res.ok) {
-        const data = await res.json()
-        setHasApiUrl(!!data.craft_api_url)
-      }
-    } catch {
-      setHasApiUrl(false)
-    }
-  }
-
   // Still checking
-  if (hasApiUrl === null) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center py-8 text-slate-500">
+      <div className="flex items-center justify-center py-8 text-slate-500 dark:text-slate-400">
         <svg className="w-5 h-5 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -37,11 +22,11 @@ export default function TimeblockView() {
   }
 
   // No API URL configured
-  if (!hasApiUrl) {
+  if (!settings.craft_api_url) {
     return (
       <div className="text-center py-8">
         <p className="text-slate-600 dark:text-slate-400 mb-2">
-          Configure your Craft API URL above to see your timeblocks.
+          Configure your Craft API URL in settings to see your timeblocks.
         </p>
       </div>
     )
@@ -54,7 +39,11 @@ export default function TimeblockView() {
           {error}
         </div>
       )}
-      <Timeline onError={setError} />
+      <Timeline
+        onError={setError}
+        startHour={settings.start_hour}
+        endHour={settings.end_hour}
+      />
     </>
   )
 }
