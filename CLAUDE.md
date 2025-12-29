@@ -181,3 +181,33 @@ Both are vanilla JS single-file apps that:
 2. Route API calls through `/api/craft/` proxy
 3. Share auth state and Craft API URL config
 4. Unified settings/preferences storage
+
+### Kanban Integration Notes
+
+**Columns:**
+- Standard view: Inbox, Backlog, Today
+- 7-day view: Inbox, Backlog, Mon-Sun, Future
+
+**Data sources (4 parallel fetches):**
+- `GET /tasks?scope=active` - Active tasks
+- `GET /tasks?scope=upcoming` - Scheduled tasks
+- `GET /tasks?scope=inbox` - Inbox tasks
+- `GET /tasks?scope=logbook` - Completed tasks
+
+**Reuse from timeblock:**
+- `lib/settings/context.tsx` - Theme, API URL
+- `lib/craft/api.ts` - Extend with `fetchTasks(scope)`
+- `lib/craft/types.ts` - Add `KanbanTask` type
+- `components/timeblock/SettingsModal.tsx` - Shared settings UI
+
+**New components needed:**
+- `components/kanban/Board.tsx` - Main board with columns
+- `components/kanban/Column.tsx` - Individual column
+- `components/kanban/TaskCard.tsx` - Draggable task card
+- `components/kanban/CreateTask.tsx` - New task modal
+
+**Interactions:**
+- Drag-drop between columns
+- Click checkbox to complete
+- Spacebar = quick note to today
+- Shift+Space = new task with date picker
