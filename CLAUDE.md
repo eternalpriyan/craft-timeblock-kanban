@@ -119,12 +119,21 @@ npm run lint     # ESLint
 
 ## Integration Notes (for Step 2)
 
-Both source apps are vanilla JS single-file apps that:
+### Source Repos
+
+Raw index.html files to pull from:
+- **Timeblock:** https://raw.githubusercontent.com/eternalpriyan/craft-timeblock/main/index.html
+- **Kanban:** https://raw.githubusercontent.com/eternalpriyan/craft-kanban/main/index.html
+
+### Source App Characteristics
+
+Both are vanilla JS single-file apps that:
 - Call Craft API directly (causes CORS for some users)
 - Use localStorage for settings (API URL, theme)
 - Parse Craft daily notes for timeblocks/tasks
 
-Integration approach:
+### Integration Approach
+
 1. Convert to React components
 2. Route API calls through `/api/craft/` proxy
 3. Share auth state and Craft API URL config
