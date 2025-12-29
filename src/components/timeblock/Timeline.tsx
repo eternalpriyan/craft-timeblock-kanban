@@ -226,7 +226,7 @@ export default function Timeline({ onError }: TimelineProps) {
       {!loading && !error && (
         <div
           ref={timelineRef}
-          className="relative ml-14 overflow-y-auto max-h-[600px]"
+          className="relative ml-14"
         >
           <TimeAxis startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
 

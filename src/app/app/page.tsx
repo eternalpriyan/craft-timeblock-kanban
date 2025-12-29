@@ -13,10 +13,10 @@ export default async function AppPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="w-full max-w-3xl mx-auto px-4 py-4">
         {/* Header */}
-        <header className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-700">
+        <header className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-medium text-slate-900 dark:text-white">
               Timeblock
