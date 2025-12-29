@@ -107,3 +107,26 @@ export async function deleteBlocks(blockIds: string[]): Promise<void> {
     throw new Error(`Failed to delete blocks: ${response.status}`)
   }
 }
+
+// Toggle task checkbox (done/todo)
+export async function toggleTask(
+  taskId: string,
+  done: boolean
+): Promise<void> {
+  const response = await fetch(`${PROXY_BASE}/tasks`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tasksToUpdate: [
+        {
+          id: taskId,
+          taskInfo: { state: done ? 'done' : 'todo' },
+        },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to update task: ${response.status}`)
+  }
+}

@@ -11,7 +11,7 @@ export interface CraftBlock {
   highlight?: string
   highlightColor?: string
   style?: { color?: string; highlight?: string }
-  listStyle?: 'todo' | 'checkbox' | 'bullet' | 'numbered'
+  listStyle?: 'task' | 'todo' | 'checkbox' | 'bullet' | 'numbered'
   taskInfo?: { state?: 'todo' | 'done' | 'canceled' }
   blocks?: CraftBlock[]
   subblocks?: CraftBlock[]

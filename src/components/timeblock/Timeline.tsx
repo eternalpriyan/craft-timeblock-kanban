@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { fetchBlocks } from '@/lib/craft/api'
+import { fetchBlocks, toggleTask } from '@/lib/craft/api'
 import { parseBlocks } from '@/lib/craft/parse-timeblocks'
 import { Timeblock, UnscheduledTask } from '@/lib/craft/types'
 import TimeAxis from './TimeAxis'
@@ -92,6 +92,48 @@ export default function Timeline({ onError }: TimelineProps) {
     const newDate = new Date(currentDate)
     newDate.setDate(newDate.getDate() + 1)
     setCurrentDate(newDate)
+  }
+
+  const handleToggleTask = async (blockId: string, checked: boolean) => {
+    // Optimistic update
+    setScheduled((prev) =>
+      prev.map((block) =>
+        block.id === blockId ? { ...block, checked } : block
+      )
+    )
+
+    try {
+      await toggleTask(blockId, checked)
+    } catch (err) {
+      // Revert on error
+      setScheduled((prev) =>
+        prev.map((block) =>
+          block.id === blockId ? { ...block, checked: !checked } : block
+        )
+      )
+      onError?.(err instanceof Error ? err.message : 'Failed to update task')
+    }
+  }
+
+  const handleToggleUnscheduledTask = async (taskId: string, checked: boolean) => {
+    // Optimistic update
+    setUnscheduled((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, checked } : task
+      )
+    )
+
+    try {
+      await toggleTask(taskId, checked)
+    } catch (err) {
+      // Revert on error
+      setUnscheduled((prev) =>
+        prev.map((task) =>
+          task.id === taskId ? { ...task, checked: !checked } : task
+        )
+      )
+      onError?.(err instanceof Error ? err.message : 'Failed to update task')
+    }
   }
 
   // Generate hour lines
@@ -206,12 +248,13 @@ export default function Timeline({ onError }: TimelineProps) {
                 startHour={startHour}
                 hourHeight={HOUR_HEIGHT}
                 isCurrent={isToday(currentDate) && isCurrent(block)}
+                onToggleTask={handleToggleTask}
               />
             ))}
           </div>
 
           {/* Unscheduled tasks */}
-          <UnscheduledList tasks={unscheduled} />
+          <UnscheduledList tasks={unscheduled} onToggleTask={handleToggleUnscheduledTask} />
         </div>
       )}
     </div>
