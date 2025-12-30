@@ -156,7 +156,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4">
       <Suspense
         fallback={
           <div className="w-full max-w-sm text-center text-slate-500">
