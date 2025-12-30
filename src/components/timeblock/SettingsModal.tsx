@@ -190,7 +190,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
                 />
                 {saving && <p className="mt-1 text-xs text-slate-400 dark:text-zinc-500">Saving...</p>}
-                <div className="mt-3 text-xs text-slate-500 dark:text-zinc-400">
+                <div className="mt-6 text-xs text-slate-500 dark:text-zinc-400">
                   <p className="font-medium mb-2">How to get your API URL:</p>
                   <ol className="list-decimal list-inside space-y-1">
                     <li>In Craft Docs Sidebar, click <strong>Imagine</strong></li>
