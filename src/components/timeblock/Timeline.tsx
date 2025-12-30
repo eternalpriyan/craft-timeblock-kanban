@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { fetchBlocks, toggleTask, deleteBlocks, insertBlock, updateBlock, formatDateForApi } from '@/lib/craft/api'
+import { fetchBlocks, toggleTask, deleteBlocks, insertBlock, updateBlock, formatDateForApi, createTask } from '@/lib/craft/api'
 import { parseBlocks } from '@/lib/craft/parse-timeblocks'
 import { Timeblock, UnscheduledTask } from '@/lib/craft/types'
-import { formatTimeForMarkdown, replaceTimeInMarkdown } from '@/lib/craft/time-parser'
+import { formatTimeForMarkdown, replaceTimeInMarkdown, stripCheckbox } from '@/lib/craft/time-parser'
 import TimeAxis from './TimeAxis'
 import NowLine from './NowLine'
 import TimeblockCard from './TimeblockCard'
@@ -50,6 +50,8 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
   const [hoveredTask, setHoveredTask] = useState<string | null>(null)
   const [creatingAt, setCreatingAt] = useState<number | null>(null)
   const [creatingTask, setCreatingTask] = useState(false)
+  const [draggingTask, setDraggingTask] = useState<UnscheduledTask | null>(null)
+  const [isTimelineDropOver, setIsTimelineDropOver] = useState(false)
   const timelineRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
 
@@ -235,12 +237,6 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     setCreatingAt(startDecimal)
   }
 
-  const handleDragEnd = () => {
-    justDraggedRef.current = true
-    // Reset after a short delay
-    setTimeout(() => { justDraggedRef.current = false }, 100)
-  }
-
   // Calculate column positions for overlapping blocks
   const getBlockColumns = (blocks: Timeblock[]): Map<string, { column: number; totalColumns: number }> => {
     const result = new Map<string, { column: number; totalColumns: number }>()
@@ -340,10 +336,11 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
 
     try {
       const dateParam = formatDateForApi(currentDate)
-      const items = await insertBlock(markdown, dateParam)
-      if (items[0]?.id) {
+      // Use createTask API so task appears in kanban
+      const task = await createTask(markdown, { type: 'dailyNote', date: dateParam })
+      if (task?.id) {
         setUnscheduled(prev =>
-          prev.map(t => t.id === tempId ? { ...t, id: items[0].id } : t)
+          prev.map(t => t.id === tempId ? { ...t, id: task.id } : t)
         )
       }
     } catch (err) {
@@ -352,62 +349,212 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     }
   }
 
-  const handleMoveBlock = async (blockId: string, newStart: number) => {
+  // Edit unscheduled task
+  const handleEditUnscheduled = async (taskId: string, newText: string) => {
+    const task = unscheduled.find(t => t.id === taskId)
+    if (!task?.id) return
+
+    const newMarkdown = `- [${task.checked ? 'x' : ' '}] ${newText.trim()}`
+
+    // Optimistic update
+    setUnscheduled(prev =>
+      prev.map(t => t.id === taskId ? { ...t, text: newText.trim(), originalMarkdown: newMarkdown } : t)
+    )
+
+    try {
+      await updateBlock(taskId, newMarkdown)
+    } catch (err) {
+      loadSchedule() // Revert on error
+      onError?.(err instanceof Error ? err.message : 'Failed to edit task')
+    }
+  }
+
+  // Edit timeblock
+  const handleEditTimeblock = async (blockId: string, newTitle: string) => {
+    const block = scheduled.find(b => b.id === blockId)
+    if (!block?.id) return
+
+    // Reconstruct markdown with new title but preserve time
+    const timeStr = `${formatTimeForMarkdown(block.start)}-${formatTimeForMarkdown(block.end)}`
+    const prefix = block.isTask ? `- [${block.checked ? 'x' : ' '}] ` : ''
+    const newMarkdown = `${prefix}${timeStr} ${newTitle.trim()}`
+
+    // Optimistic update
+    setScheduled(prev =>
+      prev.map(b => b.id === blockId ? { ...b, title: newTitle.trim(), originalMarkdown: newMarkdown } : b)
+    )
+
+    try {
+      await updateBlock(blockId, newMarkdown)
+    } catch (err) {
+      loadSchedule() // Revert on error
+      onError?.(err instanceof Error ? err.message : 'Failed to edit timeblock')
+    }
+  }
+
+  // Track pending changes to avoid API calls during drag
+  const pendingChangeRef = useRef<{ blockId: string; newStart: number; newEnd: number } | null>(null)
+
+  // Local update during drag (no API call)
+  const handleMoveBlock = (blockId: string, newStart: number) => {
     const block = scheduled.find(b => b.id === blockId)
     if (!block?.id) return
 
     const duration = block.end - block.start
     const newEnd = newStart + duration
 
-    // Optimistic update
+    // Store pending change
+    pendingChangeRef.current = { blockId, newStart, newEnd }
+
+    // Optimistic update (local only)
     setScheduled(prev =>
       prev.map(b =>
         b.id === blockId ? { ...b, start: newStart, end: newEnd } : b
       ).sort((a, b) => a.start - b.start)
     )
-
-    try {
-      const newMarkdown = replaceTimeInMarkdown(block.originalMarkdown, newStart, newEnd)
-      await updateBlock(block.id, newMarkdown)
-      // Update originalMarkdown in state for subsequent edits
-      setScheduled(prev =>
-        prev.map(b =>
-          b.id === blockId ? { ...b, originalMarkdown: newMarkdown } : b
-        )
-      )
-    } catch (err) {
-      console.error('[Timeline] Move failed:', err)
-      loadSchedule()
-      onError?.(err instanceof Error ? err.message : 'Failed to move block')
-    }
   }
 
-  const handleResizeBlock = async (blockId: string, newStart: number, newEnd: number) => {
+  // Local update during resize (no API call)
+  const handleResizeBlock = (blockId: string, newStart: number, newEnd: number) => {
     const block = scheduled.find(b => b.id === blockId)
     if (!block?.id) return
 
-    // Optimistic update
+    // Store pending change
+    pendingChangeRef.current = { blockId, newStart, newEnd }
+
+    // Optimistic update (local only)
     setScheduled(prev =>
       prev.map(b =>
         b.id === blockId ? { ...b, start: newStart, end: newEnd } : b
       ).sort((a, b) => a.start - b.start)
     )
+  }
+
+  // Commit changes to API on drag/resize end
+  const handleBlockDragEnd = async () => {
+    justDraggedRef.current = true
+    setTimeout(() => { justDraggedRef.current = false }, 100)
+
+    const pending = pendingChangeRef.current
+    if (!pending) return
+    pendingChangeRef.current = null
+
+    const block = scheduled.find(b => b.id === pending.blockId)
+    if (!block?.id) return
 
     try {
-      const newMarkdown = replaceTimeInMarkdown(block.originalMarkdown, newStart, newEnd)
+      const newMarkdown = replaceTimeInMarkdown(block.originalMarkdown, pending.newStart, pending.newEnd)
       await updateBlock(block.id, newMarkdown)
       // Update originalMarkdown in state for subsequent edits
       setScheduled(prev =>
         prev.map(b =>
-          b.id === blockId ? { ...b, originalMarkdown: newMarkdown } : b
+          b.id === pending.blockId ? { ...b, originalMarkdown: newMarkdown } : b
         )
       )
     } catch (err) {
-      console.error('[Timeline] Resize failed:', err)
+      console.error('[Timeline] Update failed:', err)
       loadSchedule()
-      onError?.(err instanceof Error ? err.message : 'Failed to resize block')
+      onError?.(err instanceof Error ? err.message : 'Failed to update block')
     }
   }
+
+  // Handle dropping unscheduled task onto timeline
+  const handleTimelineDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setIsTimelineDropOver(true)
+  }, [])
+
+  const handleTimelineDragLeave = useCallback(() => {
+    setIsTimelineDropOver(false)
+  }, [])
+
+  const handleTimelineDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsTimelineDropOver(false)
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'))
+      if (data.type !== 'unscheduled' || !data.taskId) return
+
+      const task = unscheduled.find(t => t.id === data.taskId)
+      if (!task?.id) return
+
+      // Calculate drop position time
+      const rect = trackRef.current?.getBoundingClientRect()
+      if (!rect) return
+
+      const y = e.clientY - rect.top
+      let dropHour = y / HOUR_HEIGHT + startHour
+      // Snap to 15-minute intervals
+      dropHour = Math.round(dropHour * 4) / 4
+      // Clamp within bounds
+      dropHour = Math.max(startHour, Math.min(endHour - 1, dropHour))
+
+      const endTime = Math.min(dropHour + 1, endHour) // 1 hour default duration
+      const timePrefix = `${formatTimeForMarkdown(dropHour)}-${formatTimeForMarkdown(endTime)}`
+
+      // Get the task text without checkbox
+      const taskText = stripCheckbox(task.originalMarkdown)
+      // Create new markdown with time and checkbox
+      const newMarkdown = `- [ ] ${timePrefix} ${taskText}`
+
+      // Optimistic: remove from unscheduled, add to scheduled
+      setUnscheduled(prev => prev.filter(t => t.id !== task.id))
+      const tempBlock: Timeblock = {
+        id: task.id,
+        start: dropHour,
+        end: endTime,
+        title: taskText,
+        category: 'default',
+        highlight: null,
+        originalMarkdown: newMarkdown,
+        isTask: true,
+        checked: task.checked,
+      }
+      setScheduled(prev => [...prev, tempBlock].sort((a, b) => a.start - b.start))
+
+      // Update via API
+      await updateBlock(task.id, newMarkdown)
+    } catch (err) {
+      console.error('[Timeline] Drop failed:', err)
+      loadSchedule() // Revert on error
+      onError?.(err instanceof Error ? err.message : 'Failed to schedule task')
+    }
+
+    setDraggingTask(null)
+  }, [unscheduled, startHour, endHour, loadSchedule, onError])
+
+  // Handle dropping timeblock to unscheduled
+  const handleDropToUnscheduled = useCallback(async (blockId: string) => {
+    const block = scheduled.find(b => b.id === blockId)
+    if (!block?.id) return
+
+    try {
+      // Remove time from markdown, keep task checkbox
+      const taskText = block.title
+      const newMarkdown = block.isTask
+        ? `- [${block.checked ? 'x' : ' '}] ${taskText}`
+        : `- [ ] ${taskText}`
+
+      // Optimistic: remove from scheduled, add to unscheduled
+      setScheduled(prev => prev.filter(b => b.id !== blockId))
+      const newTask: UnscheduledTask = {
+        id: block.id,
+        text: taskText,
+        checked: block.checked,
+        originalMarkdown: newMarkdown,
+      }
+      setUnscheduled(prev => [newTask, ...prev])
+
+      // Update via API
+      await updateBlock(block.id, newMarkdown)
+    } catch (err) {
+      console.error('[Timeline] Unschedule failed:', err)
+      loadSchedule() // Revert on error
+      onError?.(err instanceof Error ? err.message : 'Failed to unschedule task')
+    }
+  }, [scheduled, loadSchedule, onError])
 
   // Generate hour lines
   const hourLines = []
@@ -423,46 +570,39 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
 
   return (
     <div className="w-full">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-zinc-800">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={goToPrevDay}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h2 className="text-base font-medium text-slate-900 dark:text-white px-2">
-            {formatDateTitle(currentDate)}
-          </h2>
-          <button
-            onClick={goToNextDay}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      {/* Header - centered like 7-day view */}
+      <div className="flex items-center justify-center gap-4 py-3 border-b border-slate-200 dark:border-zinc-800">
         <button
-          onClick={loadSchedule}
-          disabled={loading}
-          className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 disabled:opacity-50"
+          onClick={goToPrevDay}
+          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 transition-colors"
+          title="Previous day"
         >
-          <svg
-            className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <div className="flex items-center gap-3">
+          <span className="font-serif text-sm font-medium text-slate-700 dark:text-zinc-300 min-w-[120px] text-center">
+            {formatDateTitle(currentDate)}
+          </span>
+          {!isToday(currentDate) && (
+            <button
+              onClick={() => setCurrentDate(new Date())}
+              className="px-3 py-1 text-xs font-medium rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
+            >
+              Today
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={goToNextDay}
+          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 transition-colors"
+          title="Next day"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
@@ -505,9 +645,14 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
 
           <div
             ref={trackRef}
-            className="relative border-l border-slate-200 dark:border-zinc-800 cursor-pointer pl-1"
-            style={{ minHeight: totalHours * HOUR_HEIGHT }}
+            className={`relative border-l border-slate-200 dark:border-zinc-800 cursor-pointer pl-1 overflow-hidden ${
+              isTimelineDropOver ? 'ring-2 ring-slate-400 dark:ring-zinc-500 bg-slate-50/50 dark:bg-zinc-800/50' : ''
+            }`}
+            style={{ height: totalHours * HOUR_HEIGHT }}
             onClick={handleTimelineClick}
+            onDragOver={handleTimelineDragOver}
+            onDragLeave={handleTimelineDragLeave}
+            onDrop={handleTimelineDrop}
           >
             {/* Hour lines */}
             {hourLines}
@@ -533,9 +678,11 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
                   onMouseEnter={() => setHoveredBlock(block.id)}
                   onMouseLeave={() => setHoveredBlock(null)}
                   onDelete={() => block.id && handleDeleteBlock(block.id)}
+                  onEdit={(newTitle) => block.id && handleEditTimeblock(block.id, newTitle)}
                   onMove={(newStart) => block.id && handleMoveBlock(block.id, newStart)}
                   onResize={(newStart, newEnd) => block.id && handleResizeBlock(block.id, newStart, newEnd)}
-                  onDragEnd={handleDragEnd}
+                  onDragEnd={handleBlockDragEnd}
+                  onUnschedule={() => block.id && handleDropToUnscheduled(block.id)}
                 />
               )
             })}
@@ -564,6 +711,10 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
             onTaskHover={setHoveredTask}
             hoveredTask={hoveredTask}
             onDelete={handleDeleteTask}
+            onEdit={handleEditUnscheduled}
+            onDragStart={setDraggingTask}
+            onDragEnd={() => setDraggingTask(null)}
+            onAddTask={() => setCreatingTask(true)}
           />
 
           {/* Inline task creator */}

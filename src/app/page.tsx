@@ -6,7 +6,7 @@ export default function Home() {
       <main className="flex flex-col items-center gap-8 px-6 text-center">
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-5xl">
-            Craft Companion
+            Craft-sama
           </h1>
           <p className="max-w-md text-lg text-slate-600 dark:text-slate-400">
             Timeblock and Kanban views for your Craft daily notes

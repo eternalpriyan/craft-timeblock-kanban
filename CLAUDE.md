@@ -101,9 +101,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon_key>
   - Optimistic UI updates (no page reload on actions)
   - Press V to toggle views, R to reload
 - [x] Tabbed Settings modal (General, Timeblock, Kanban)
-
-**Pending:**
-- [ ] 7-day view for kanban (Mon-Sun columns)
+- [x] 7-day view for kanban:
+  - 3-way view switcher in header: Timeblock | Tasks | 7-Day
+  - Tasks view: Standard 3-column (Inbox | Backlog | Today)
+  - 7-Day view: Full week (Inbox | Backlog | Mon-Sun | Future)
+  - Week navigation with prev/next buttons and "Today" quick-jump
+  - Configurable week start (Monday or Sunday) in Settings
+  - Today column highlighted with orange accent
+  - V key cycles through views
 
 ## Code Principles
 
@@ -225,6 +230,16 @@ createTask(markdown, location, date?)  // POST /tasks
 deleteTasks(taskIds)                   // DELETE /tasks
 ```
 
-### 7-Day View (Future Enhancement)
+### 7-Day View (Implemented)
 
 **Columns:** Inbox | Backlog | Mon-Sun | Future
+
+**Settings:**
+- `kanban_view_mode`: 'standard' | 'week'
+- `monday_first`: boolean (week start day)
+
+**Key files:**
+- `src/components/kanban/Board.tsx` - Main board with view mode logic
+- `src/components/kanban/Column.tsx` - Column with date column support
+- `src/lib/settings/types.ts` - Settings interface
+- `src/components/timeblock/SettingsModal.tsx` - View mode toggle UI

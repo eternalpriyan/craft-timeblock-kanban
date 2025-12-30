@@ -7,7 +7,7 @@ import TimeblockView from './timeblock-view'
 import SettingsModal from '@/components/timeblock/SettingsModal'
 import Board from '@/components/kanban/Board'
 
-type ViewType = 'timeblock' | 'kanban'
+type ViewType = 'timeblock' | 'tasks' | '7day'
 
 interface TimeblockAppProps {
   userEmail: string
@@ -23,7 +23,7 @@ export default function TimeblockApp({ userEmail }: TimeblockAppProps) {
     setReloadKey((k) => k + 1)
   }, [])
 
-  // Keyboard shortcut: V to toggle views, R to reload
+  // Keyboard shortcut: V to cycle views, R to reload
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Don't trigger if in an input or modal
     if (
@@ -34,7 +34,11 @@ export default function TimeblockApp({ userEmail }: TimeblockAppProps) {
       return
     }
     if (e.key === 'v' || e.key === 'V') {
-      setCurrentView((prev) => (prev === 'timeblock' ? 'kanban' : 'timeblock'))
+      setCurrentView((prev) => {
+        if (prev === 'timeblock') return 'tasks'
+        if (prev === 'tasks') return '7day'
+        return 'timeblock'
+      })
     }
     if (e.key === 'r' || e.key === 'R') {
       handleReload()
@@ -49,15 +53,15 @@ export default function TimeblockApp({ userEmail }: TimeblockAppProps) {
   return (
     <SettingsProvider>
       <div className="min-h-screen bg-white dark:bg-zinc-950">
-        <div className={`w-full mx-auto px-4 py-4 ${currentView === 'timeblock' ? 'max-w-3xl' : 'max-w-6xl'}`}>
-          {/* Header */}
-          <header className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
+        {/* Header - always full width */}
+        <header className="w-full px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {/* View switcher */}
               <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
                 <button
                   onClick={() => setCurrentView('timeblock')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  className={`font-serif px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     currentView === 'timeblock'
                       ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
@@ -66,14 +70,24 @@ export default function TimeblockApp({ userEmail }: TimeblockAppProps) {
                   Timeblock
                 </button>
                 <button
-                  onClick={() => setCurrentView('kanban')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    currentView === 'kanban'
+                  onClick={() => setCurrentView('tasks')}
+                  className={`font-serif px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    currentView === 'tasks'
                       ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
-                  Kanban
+                  Tasks
+                </button>
+                <button
+                  onClick={() => setCurrentView('7day')}
+                  className={`font-serif px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    currentView === '7day'
+                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                >
+                  7-Day
                 </button>
               </div>
               <button
@@ -105,18 +119,23 @@ export default function TimeblockApp({ userEmail }: TimeblockAppProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </button>
-              <span className="text-xs text-slate-400 dark:text-slate-500">
-                V: views, R: reload
-              </span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-slate-500 dark:text-slate-400">{userEmail}</span>
               <LogoutButton />
             </div>
-          </header>
+          </div>
+        </header>
 
-          {/* Content */}
-          {currentView === 'timeblock' ? <TimeblockView key={reloadKey} /> : <Board key={reloadKey} />}
+        {/* Content - with appropriate max-width */}
+        <div className={`w-full mx-auto px-4 py-4 ${
+          currentView === 'timeblock' ? 'max-w-3xl' :
+          currentView === 'tasks' ? 'max-w-5xl' :
+          '' // 7-day: full width
+        }`}>
+          {currentView === 'timeblock' && <TimeblockView key={reloadKey} />}
+          {currentView === 'tasks' && <Board key={reloadKey} viewMode="standard" />}
+          {currentView === '7day' && <Board key={reloadKey} viewMode="week" />}
         </div>
       </div>
 

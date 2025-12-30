@@ -79,7 +79,14 @@ export interface CraftTask {
 }
 
 // Kanban column identifiers
-export type KanbanColumnId = 'inbox' | 'backlog' | 'today'
+// Base columns + dynamic date columns (YYYY-MM-DD format) + future
+export type KanbanBaseColumnId = 'inbox' | 'backlog' | 'future'
+export type KanbanColumnId = KanbanBaseColumnId | string // string for date columns like '2024-01-15'
+
+// Check if column ID is a date column
+export function isDateColumn(columnId: KanbanColumnId): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(columnId)
+}
 
 // Task update payload for PUT /tasks
 export interface TaskUpdate {

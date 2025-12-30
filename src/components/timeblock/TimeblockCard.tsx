@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Timeblock } from '@/lib/craft/types'
 
 interface TimeblockCardProps {
@@ -16,38 +16,40 @@ interface TimeblockCardProps {
   onMouseEnter?: () => void
   onMouseLeave?: () => void
   onDelete?: () => void
+  onEdit?: (newTitle: string) => void
   onMove?: (newStart: number) => void
   onResize?: (newStart: number, newEnd: number) => void
   onDragEnd?: () => void
+  onUnschedule?: () => void
 }
 
-// Category to Tailwind class mapping - opaque backgrounds
+// Category to Tailwind class mapping - visible colors in both modes
 const categoryColors: Record<string, string> = {
-  work: 'bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-700',
-  meeting: 'bg-orange-100 dark:bg-orange-900 border-orange-300 dark:border-orange-700',
-  health: 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700',
-  personal: 'bg-purple-100 dark:bg-purple-900 border-purple-300 dark:border-purple-700',
-  default: 'bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-600',
+  work: 'bg-blue-100 dark:bg-blue-950 border-blue-300 dark:border-blue-800',
+  meeting: 'bg-orange-100 dark:bg-orange-950 border-orange-300 dark:border-orange-800',
+  health: 'bg-green-100 dark:bg-green-950 border-green-300 dark:border-green-800',
+  personal: 'bg-purple-100 dark:bg-purple-950 border-purple-300 dark:border-purple-800',
+  default: 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600',
 }
 
-// Craft highlight colors - opaque backgrounds
+// Craft highlight colors - visible in both modes
 const highlightColors: Record<string, string> = {
-  purple: 'bg-purple-100 dark:bg-purple-900 border-purple-300 dark:border-purple-700',
-  'gradient-purple': 'bg-purple-100 dark:bg-purple-900 border-purple-300 dark:border-purple-700',
-  blue: 'bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-700',
-  'gradient-blue': 'bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-700',
-  green: 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700',
-  'gradient-green': 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-700',
+  purple: 'bg-purple-100 dark:bg-purple-950 border-purple-300 dark:border-purple-800',
+  'gradient-purple': 'bg-purple-100 dark:bg-purple-950 border-purple-300 dark:border-purple-800',
+  blue: 'bg-blue-100 dark:bg-blue-950 border-blue-300 dark:border-blue-800',
+  'gradient-blue': 'bg-blue-100 dark:bg-blue-950 border-blue-300 dark:border-blue-800',
+  green: 'bg-green-100 dark:bg-green-950 border-green-300 dark:border-green-800',
+  'gradient-green': 'bg-green-100 dark:bg-green-950 border-green-300 dark:border-green-800',
   yellow: 'bg-yellow-100 dark:bg-yellow-900 border-yellow-300 dark:border-yellow-700',
   'gradient-yellow': 'bg-yellow-100 dark:bg-yellow-900 border-yellow-300 dark:border-yellow-700',
-  orange: 'bg-orange-100 dark:bg-orange-900 border-orange-300 dark:border-orange-700',
-  'gradient-orange': 'bg-orange-100 dark:bg-orange-900 border-orange-300 dark:border-orange-700',
-  red: 'bg-red-100 dark:bg-red-900 border-red-300 dark:border-red-700',
-  'gradient-red': 'bg-red-100 dark:bg-red-900 border-red-300 dark:border-red-700',
-  pink: 'bg-pink-100 dark:bg-pink-900 border-pink-300 dark:border-pink-700',
-  'gradient-pink': 'bg-pink-100 dark:bg-pink-900 border-pink-300 dark:border-pink-700',
-  gray: 'bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-600',
-  'gradient-gray': 'bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-600',
+  orange: 'bg-orange-100 dark:bg-orange-950 border-orange-300 dark:border-orange-800',
+  'gradient-orange': 'bg-orange-100 dark:bg-orange-950 border-orange-300 dark:border-orange-800',
+  red: 'bg-red-100 dark:bg-red-950 border-red-300 dark:border-red-800',
+  'gradient-red': 'bg-red-100 dark:bg-red-950 border-red-300 dark:border-red-800',
+  pink: 'bg-pink-100 dark:bg-pink-950 border-pink-300 dark:border-pink-800',
+  'gradient-pink': 'bg-pink-100 dark:bg-pink-950 border-pink-300 dark:border-pink-800',
+  gray: 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600',
+  'gradient-gray': 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600',
 }
 
 function formatTime(hour: number): string {
@@ -69,6 +71,37 @@ function isHexColor(str: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(str)
 }
 
+// Render text with markdown links underlined
+function renderWithLinks(text: string): React.ReactNode {
+  // Match [text](url) patterns
+  const linkPattern = /\[([^\]]+)\]\([^)]+\)/g
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let match
+  let key = 0
+
+  while ((match = linkPattern.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+    // Add the link text with underline
+    parts.push(
+      <span key={key++} className="underline decoration-slate-400 dark:decoration-zinc-500">
+        {match[1]}
+      </span>
+    )
+    lastIndex = match.index + match[0].length
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
+  }
+
+  return parts.length > 0 ? parts : text
+}
+
 export default function TimeblockCard({
   block,
   startHour,
@@ -82,30 +115,84 @@ export default function TimeblockCard({
   onMouseEnter,
   onMouseLeave,
   onDelete,
+  onEdit,
   onMove,
   onResize,
   onDragEnd,
+  onUnschedule,
 }: TimeblockCardProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState<'top' | 'bottom' | null>(null)
   const [swipeX, setSwipeX] = useState(0)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState('')
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const dragStartRef = useRef<{ y: number; startHour: number } | null>(null)
   const resizeStartRef = useRef<{ y: number; start: number; end: number } | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const top = (block.start - startHour) * hourHeight
-  const height = (block.end - block.start) * hourHeight
+  // Focus input when editing
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
 
-  // Drag handlers
+  const handleDoubleClick = useCallback(() => {
+    if (!onEdit) return
+    setEditText(block.title)
+    setIsEditing(true)
+  }, [block.title, onEdit])
+
+  const handleSaveEdit = useCallback(() => {
+    if (!onEdit || !editText.trim()) {
+      setIsEditing(false)
+      return
+    }
+    if (editText.trim() !== block.title) {
+      onEdit(editText.trim())
+    }
+    setIsEditing(false)
+  }, [editText, block.title, onEdit])
+
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveEdit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setIsEditing(false)
+      setEditText('')
+    }
+  }, [handleSaveEdit])
+
+  // Calculate position and clamp to visible bounds
+  const rawTop = (block.start - startHour) * hourHeight
+  const rawBottom = (block.end - startHour) * hourHeight
+  const maxHeight = (endHour - startHour) * hourHeight
+  const clampedTop = Math.max(0, rawTop)
+  const clampedBottom = Math.min(maxHeight, rawBottom)
+  const top = clampedTop
+  const height = Math.max(24, clampedBottom - clampedTop) // min height 24px
+
+  // Drag handlers - mouse-based for within-timeline movement
+  // Shift+drag triggers HTML5 drag for cross-area (to unscheduled)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.resize-handle') || (e.target as HTMLElement).closest('button')) return
+
+    // If Shift is held, allow HTML5 drag for cross-area transfer
+    if (e.shiftKey) return
+
+    // Prevent HTML5 drag, use mouse-based for within-timeline
     e.preventDefault()
     setIsDragging(true)
     dragStartRef.current = { y: e.clientY, startHour: block.start }
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragStartRef.current || !onMove) return
+
       const deltaY = e.clientY - dragStartRef.current.y
       const deltaHours = deltaY / hourHeight
       let newStart = dragStartRef.current.startHour + deltaHours
@@ -224,7 +311,7 @@ export default function TimeblockCard({
     }
   }
   if (isCurrent) {
-    colorClass = 'bg-orange-200 dark:bg-orange-900 border-orange-400 dark:border-orange-600'
+    colorClass = 'bg-orange-50 dark:bg-orange-950/50 border-orange-300 dark:border-orange-800 ring-1 ring-orange-400/50'
   }
 
   // Apply swipe transform
@@ -236,9 +323,9 @@ export default function TimeblockCard({
   return (
     <div
       ref={cardRef}
-      className={`timeblock-card absolute rounded-md border px-2 py-1.5 overflow-hidden select-none ${colorClass} ${
+      className={`timeblock-card group absolute rounded-md border px-2 py-1.5 overflow-hidden select-none ${colorClass} ${
         isDragging || isResizing ? 'cursor-grabbing shadow-lg z-10' : 'cursor-grab'
-      } ${isHovered ? 'ring-2 ring-orange-500/50' : ''}`}
+      } ${isHovered ? 'ring-2 ring-slate-400 dark:ring-zinc-500' : ''}`}
       style={inlineStyle}
       onMouseDown={handleMouseDown}
       onMouseEnter={onMouseEnter}
@@ -276,8 +363,81 @@ export default function TimeblockCard({
         {block.isTask && (!block.id || !onToggleTask) && (
           <span className="flex-shrink-0">{block.checked ? '✓' : '○'}</span>
         )}
-        <span className={block.checked ? 'line-through opacity-60' : ''}>{block.title}</span>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={handleEditKeyDown}
+            onBlur={handleSaveEdit}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="flex-1 px-1 py-0.5 text-sm rounded border border-slate-400 dark:border-zinc-500 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none"
+          />
+        ) : (
+          <span
+            onDoubleClick={handleDoubleClick}
+            className={`cursor-text ${block.checked ? 'line-through opacity-60' : ''}`}
+          >
+            {renderWithLinks(block.title)}
+          </span>
+        )}
       </div>
+
+      {/* Action buttons - stacked vertically, appears on hover */}
+      {(onDelete || onEdit || onUnschedule) && !isEditing && (
+        <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Delete button */}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400"
+              title="Delete"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          {/* Edit button */}
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleDoubleClick()
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400"
+              title="Edit"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+          )}
+          {/* Unschedule button */}
+          {onUnschedule && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onUnschedule()
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400"
+              title="Move to unscheduled"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Bottom resize handle */}
       <div

@@ -6,9 +6,44 @@ import { CraftTask } from '@/lib/craft/types'
 // Strip markdown checkbox patterns from task text
 function stripCheckboxMarkdown(text: string): string {
   return text
-    .replace(/^-\s*\[[ xX]\]\s*/, '') // - [ ] or - [x] at start
-    .replace(/^\[[ xX]\]\s*/, '')     // [ ] or [x] at start
+    .trim()                                              // Remove leading/trailing whitespace first
+    .replace(/^[\s\u200B\uFEFF]*/, '')                   // Remove any zero-width chars at start
+    .replace(/^[-–—•*+]\s*\[[ xX]?\]\s*/i, '')          // - [ ] or - [x] with various dash types
+    .replace(/^\[[ xX]?\]\s*/i, '')                      // [ ] or [x] at start without bullet
+    .replace(/^[-–—•*+]\s+/i, '')                        // Plain bullet without checkbox
     .trim()
+}
+
+// Render text with markdown links underlined
+function renderWithLinks(text: string): React.ReactNode {
+  const cleaned = stripCheckboxMarkdown(text)
+  // Match [text](url) patterns
+  const linkPattern = /\[([^\]]+)\]\([^)]+\)/g
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let match
+  let key = 0
+
+  while ((match = linkPattern.exec(cleaned)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push(cleaned.slice(lastIndex, match.index))
+    }
+    // Add the link text with underline
+    parts.push(
+      <span key={key++} className="underline decoration-slate-400 dark:decoration-zinc-500">
+        {match[1]}
+      </span>
+    )
+    lastIndex = match.index + match[0].length
+  }
+
+  // Add remaining text
+  if (lastIndex < cleaned.length) {
+    parts.push(cleaned.slice(lastIndex))
+  }
+
+  return parts.length > 0 ? parts : cleaned
 }
 
 // Get the checkbox prefix from original markdown
@@ -154,7 +189,7 @@ export default function TaskCard({
         hover:border-slate-300 dark:hover:border-zinc-600
         ${isDragging ? 'opacity-50 shadow-lg' : ''}
         ${isCompleted ? 'opacity-60' : ''}
-        ${isEditing ? 'ring-2 ring-orange-500' : ''}
+        ${isEditing ? 'ring-2 ring-slate-400 dark:ring-zinc-500' : ''}
         ${dragHandleOnly ? '' : 'cursor-grab'}
       `}
       style={style}
@@ -199,14 +234,14 @@ export default function TaskCard({
               onChange={(e) => setEditText(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={handleSaveEdit}
-              className="w-full px-2 py-1 text-sm rounded border border-orange-400 dark:border-orange-500 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              className="w-full px-2 py-1 text-sm rounded border border-slate-400 dark:border-zinc-500 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-slate-500 dark:focus:ring-zinc-400"
             />
           ) : (
             <p
               onDoubleClick={handleDoubleClick}
               className={`text-sm text-slate-900 dark:text-zinc-100 cursor-text ${isCompleted ? 'line-through' : ''}`}
             >
-              {stripCheckboxMarkdown(task.markdown)}
+              {renderWithLinks(task.markdown)}
             </p>
           )}
 
@@ -229,9 +264,22 @@ export default function TaskCard({
         </div>
       </div>
 
-      {/* Action buttons (visible on hover) */}
+      {/* Action buttons (visible on hover) - stacked vertically */}
       {!isEditing && (
-        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Delete button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete?.(task.id)
+            }}
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 dark:text-zinc-500"
+            title="Delete"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           {/* Edit button */}
           {onEdit && (
             <button
@@ -247,19 +295,6 @@ export default function TaskCard({
               </svg>
             </button>
           )}
-          {/* Delete button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete?.(task.id)
-            }}
-            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
-            title="Delete"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       )}
     </div>

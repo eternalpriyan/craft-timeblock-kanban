@@ -108,7 +108,7 @@ export default function CreateTaskModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="What needs to be done?"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-500"
               />
             </div>
 
@@ -123,7 +123,7 @@ export default function CreateTaskModal({
                   onClick={() => setTaskType('inbox')}
                   className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     taskType === 'inbox'
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 ring-1 ring-blue-300 dark:ring-blue-700'
                       : 'bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600'
                   }`}
                 >
@@ -134,7 +134,7 @@ export default function CreateTaskModal({
                   onClick={() => setTaskType('dailyNote')}
                   className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     taskType === 'dailyNote'
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 ring-1 ring-green-300 dark:ring-green-700'
                       : 'bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600'
                   }`}
                 >
@@ -158,7 +158,7 @@ export default function CreateTaskModal({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-500"
                 />
               </div>
             )}
@@ -181,7 +181,7 @@ export default function CreateTaskModal({
             <button
               type="submit"
               disabled={!title.trim() || loading}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-slate-700 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Creating...' : 'Create Task'}
             </button>

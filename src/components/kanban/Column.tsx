@@ -17,7 +17,6 @@ interface ColumnProps {
   onDragStart: (task: CraftTask) => void
   onDragEnd: () => void
   onDrop: (task: CraftTask, targetColumn: KanbanColumnId) => void
-  onReorderTasks?: (columnId: KanbanColumnId, taskIds: string[]) => void
   onCreateTask?: () => void
 }
 
@@ -34,10 +33,10 @@ export default function Column({
   onDragStart,
   onDragEnd,
   onDrop,
-  onReorderTasks,
   onCreateTask,
 }: ColumnProps) {
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // Check if this is today's date column (works for both standard "today" and week view "Mon (Today)")
+  const isToday = id === 'today' || title.includes('(Today)')
   const [isOver, setIsOver] = useState(false)
 
   // Check if drop is allowed
@@ -84,19 +83,26 @@ export default function Column({
         className={`
           flex flex-col items-center py-4 px-2 rounded-lg cursor-pointer
           bg-slate-100 dark:bg-zinc-900/50 hover:bg-slate-200 dark:hover:bg-zinc-800
-          min-h-[200px] w-[60px] transition-all
-          ${isOver && canDrop() ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''}
-          ${showDropNotAllowed ? 'ring-2 ring-red-400 dark:ring-red-500' : ''}
+          min-h-[200px] w-[60px]
+          ${isToday ? 'ring-2 ring-slate-400 dark:ring-zinc-500' : ''}
+          ${isOver && canDrop() ? 'ring-2 ring-slate-400 dark:ring-zinc-500 bg-slate-50 dark:bg-zinc-800/50' : ''}
+          ${showDropNotAllowed ? 'ring-2 ring-slate-300 dark:ring-zinc-600' : ''}
         `}
       >
         {/* Vertical title */}
-        <div className="writing-mode-vertical text-sm font-semibold text-slate-700 dark:text-zinc-300 whitespace-nowrap"
+        <div className={`font-serif writing-mode-vertical text-sm font-semibold whitespace-nowrap ${
+          isToday ? 'text-slate-900 dark:text-zinc-100' : 'text-slate-700 dark:text-zinc-300'
+        }`}
           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
         >
           {title}
         </div>
         {/* Task count badge */}
-        <span className="mt-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
+        <span className={`mt-2 px-1.5 py-0.5 text-xs font-medium rounded-full ${
+          isToday
+            ? 'bg-slate-300 dark:bg-zinc-600 text-slate-700 dark:text-zinc-200'
+            : 'bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400'
+        }`}>
           {tasks.length}
         </span>
       </div>
@@ -104,32 +110,45 @@ export default function Column({
   }
 
   return (
-    <div className="flex flex-col flex-1 min-w-[280px] max-w-[360px] transition-all">
-      {/* Column header */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <button
-          onClick={onToggleCollapse}
-          className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-        >
+    <div className="flex flex-col flex-1 min-w-[140px] max-w-[240px]">
+      {/* Column header - entire bar is clickable */}
+      <div
+        onClick={onToggleCollapse}
+        className={`
+          flex items-center justify-between mb-3 px-2 py-2 rounded-lg cursor-pointer
+          hover:bg-slate-200 dark:hover:bg-zinc-800 transition-colors
+          ${isToday ? 'bg-slate-200 dark:bg-zinc-800' : 'bg-slate-100 dark:bg-zinc-900/50'}
+        `}
+      >
+        <div className="flex items-center gap-2">
           <svg
-            className="w-4 h-4 text-slate-400 dark:text-zinc-500"
+            className={`w-4 h-4 ${isToday ? 'text-slate-600 dark:text-zinc-300' : 'text-slate-400 dark:text-zinc-500'}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">
+          <h3 className={`font-serif text-sm font-semibold ${
+            isToday ? 'text-slate-900 dark:text-zinc-100' : 'text-slate-700 dark:text-zinc-300'
+          }`}>
             {title}
           </h3>
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
+          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+            isToday
+              ? 'bg-slate-300 dark:bg-zinc-600 text-slate-700 dark:text-zinc-200'
+              : 'bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400'
+          }`}>
             {tasks.length}
           </span>
-        </button>
+        </div>
         {onCreateTask && (
           <button
-            onClick={onCreateTask}
-            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation() // Prevent collapse when clicking +
+              onCreateTask()
+            }}
+            className="p-1 rounded hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-500 dark:text-zinc-400 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -145,9 +164,9 @@ export default function Column({
         onDrop={handleDrop}
         className={`
           flex-1 rounded-lg p-2 space-y-2 overflow-y-auto min-h-[200px]
-          bg-slate-100 dark:bg-zinc-900/50
-          ${isOver && canDrop() ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''}
-          ${showDropNotAllowed ? 'ring-2 ring-red-400 dark:ring-red-500 bg-red-50 dark:bg-red-900/20' : ''}
+          ${isToday ? 'bg-slate-200/50 dark:bg-zinc-800/50 ring-1 ring-slate-300 dark:ring-zinc-600' : 'bg-slate-100 dark:bg-zinc-900/50'}
+          ${isOver && canDrop() ? 'ring-2 ring-slate-400 dark:ring-zinc-500 bg-slate-50 dark:bg-zinc-800/50' : ''}
+          ${showDropNotAllowed ? 'ring-2 ring-slate-300 dark:ring-zinc-600 bg-slate-50 dark:bg-zinc-800/50' : ''}
         `}
       >
         {/* Not allowed indicator */}
@@ -161,48 +180,17 @@ export default function Column({
         )}
 
         {/* Task cards */}
-        {tasks.map((task, index) => (
-          <div
+        {tasks.map((task) => (
+          <TaskCard
             key={task.id}
-            onDragOver={(e) => {
-              // Allow reordering within same column
-              if (draggingTask && tasks.some(t => t.id === draggingTask.id)) {
-                e.preventDefault()
-                e.stopPropagation()
-                setDragOverIndex(index)
-              }
-            }}
-            onDragLeave={() => setDragOverIndex(null)}
-            onDrop={(e) => {
-              // Handle reordering within same column
-              if (draggingTask && tasks.some(t => t.id === draggingTask.id) && onReorderTasks) {
-                e.preventDefault()
-                e.stopPropagation()
-                const fromIndex = tasks.findIndex(t => t.id === draggingTask.id)
-                if (fromIndex !== index && fromIndex !== -1) {
-                  const newOrder = [...tasks]
-                  const [moved] = newOrder.splice(fromIndex, 1)
-                  newOrder.splice(index, 0, moved)
-                  onReorderTasks(id, newOrder.map(t => t.id))
-                }
-                setDragOverIndex(null)
-              }
-            }}
-            className={dragOverIndex === index && draggingTask?.id !== task.id ? 'border-t-2 border-orange-400' : ''}
-          >
-            <TaskCard
-              task={task}
-              onToggle={onToggleTask}
-              onDelete={onDeleteTask}
-              onEdit={onEditTask}
-              onDragStart={onDragStart}
-              onDragEnd={() => {
-                setDragOverIndex(null)
-                onDragEnd()
-              }}
-              isDragging={draggingTask?.id === task.id}
-            />
-          </div>
+            task={task}
+            onToggle={onToggleTask}
+            onDelete={onDeleteTask}
+            onEdit={onEditTask}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            isDragging={draggingTask?.id === task.id}
+          />
         ))}
 
         {/* Empty state */}

@@ -142,8 +142,8 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+        {/* Content - fixed height to prevent jumping between tabs */}
+        <div className="p-6 h-[400px] overflow-y-auto settings-scrollbar">
           {/* General Tab */}
           {activeTab === 'general' && (
             <>
@@ -195,14 +195,23 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
               {/* Footer */}
               <div className="pt-4 border-t border-slate-200 dark:border-zinc-700 text-center text-sm text-slate-400 dark:text-zinc-500">
                 <a
-                  href="https://github.com/eternalpriyan/craft-timeblock"
+                  href="https://github.com/eternalpriyan/craft-timeblock-kanban"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-orange-500 hover:text-orange-400"
                 >
-                  Craft Timeblock
+                  Craft-sama
                 </a>
                 {' '}by Nithya Priyan
+                <span className="mx-2">·</span>
+                <a
+                  href="https://buymeacoffee.com/npsoy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  Buy me a coffee
+                </a>
               </div>
             </>
           )}
@@ -272,6 +281,36 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
           {/* Kanban Tab */}
           {activeTab === 'kanban' && (
             <>
+              {/* Week Start Day */}
+              <div className="mb-6">
+                <label className="block text-sm text-slate-500 dark:text-zinc-400 mb-2">Week Starts On</label>
+                <div className="inline-flex rounded-lg bg-slate-100 dark:bg-zinc-800 p-1">
+                  <button
+                    onClick={() => updateSettings({ monday_first: true })}
+                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                      settings.monday_first
+                        ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    Monday
+                  </button>
+                  <button
+                    onClick={() => updateSettings({ monday_first: false })}
+                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                      !settings.monday_first
+                        ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    Sunday
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500">
+                  Affects the 7-Day view week layout
+                </p>
+              </div>
+
               {/* Column Defaults */}
               <div className="mb-6">
                 <label className="block text-sm text-slate-500 dark:text-zinc-400 mb-2">Column Layout</label>
@@ -288,35 +327,57 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
 
               {/* Shortcuts */}
               <div>
-                <h3 className="text-sm text-slate-500 dark:text-zinc-400 mb-3">Shortcuts</h3>
+                <h3 className="text-sm text-slate-500 dark:text-zinc-400 mb-3">Keyboard Shortcuts</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">Collapse/expand column</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Click header</span>
+                    <span className="text-slate-700 dark:text-zinc-300">New task</span>
+                    <span className="text-slate-400 dark:text-zinc-500">Shift + Space</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">New task</span>
-                    <span className="text-slate-400 dark:text-zinc-500">+ button on column</span>
+                    <span className="text-slate-700 dark:text-zinc-300">Toggle all columns</span>
+                    <span className="text-slate-400 dark:text-zinc-500">A</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Toggle column 1-10</span>
+                    <span className="text-slate-400 dark:text-zinc-500">1-9, 0</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Reload</span>
+                    <span className="text-slate-400 dark:text-zinc-500">R</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Show shortcuts</span>
+                    <span className="text-slate-400 dark:text-zinc-500">?</span>
+                  </div>
+                </div>
+                <h3 className="text-sm text-slate-500 dark:text-zinc-400 mt-4 mb-3">7-Day View</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Previous week</span>
+                    <span className="text-slate-400 dark:text-zinc-500">&larr;</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Next week</span>
+                    <span className="text-slate-400 dark:text-zinc-500">&rarr;</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Go to today</span>
+                    <span className="text-slate-400 dark:text-zinc-500">T</span>
+                  </div>
+                </div>
+                <h3 className="text-sm text-slate-500 dark:text-zinc-400 mt-4 mb-3">Mouse/Touch</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 dark:text-zinc-300">Collapse/expand</span>
+                    <span className="text-slate-400 dark:text-zinc-500">Click header bar</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">Edit task</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Double-click / pencil icon</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">Save edit</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Enter / click away</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">Cancel edit</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Escape</span>
+                    <span className="text-slate-400 dark:text-zinc-500">Double-click</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">Move task</span>
                     <span className="text-slate-400 dark:text-zinc-500">Drag to column</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">Reorder task</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Drag within column</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">Complete task</span>
@@ -324,7 +385,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">Delete task</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Swipe left / X button</span>
+                    <span className="text-slate-400 dark:text-zinc-500">Swipe left</span>
                   </div>
                 </div>
               </div>
