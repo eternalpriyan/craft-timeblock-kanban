@@ -46,7 +46,7 @@ export default function InlineEditor({
     return (
       <div
         style={style}
-        className="bg-orange-500/20 border border-orange-500/50 rounded-md px-3 py-2"
+        className="bg-slate-200/50 dark:bg-zinc-700/50 border border-slate-400 dark:border-zinc-500 rounded-md px-3 py-2"
       >
         <input
           ref={inputRef}
