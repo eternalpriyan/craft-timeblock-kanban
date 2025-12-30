@@ -588,7 +588,7 @@ export default function Board({ viewMode }: BoardProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-500 dark:border-zinc-400" />
       </div>
     )
   }
@@ -599,7 +599,7 @@ export default function Board({ viewMode }: BoardProps) {
         <p className="text-red-500 dark:text-red-400">{error}</p>
         <button
           onClick={loadTasks}
-          className="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+          className="px-4 py-2 rounded-lg bg-slate-600 dark:bg-zinc-600 text-white hover:bg-slate-700 dark:hover:bg-zinc-500 transition-colors"
         >
           Retry
         </button>
