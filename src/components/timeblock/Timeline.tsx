@@ -639,7 +639,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
       {!loading && !error && (
         <div
           ref={timelineRef}
-          className="relative ml-14 mt-4"
+          className="relative ml-14 mt-8"
         >
           <TimeAxis startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
 
