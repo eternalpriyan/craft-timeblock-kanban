@@ -19,6 +19,13 @@ export default function Home() {
         >
           Get Started
         </Link>
+
+        <Link
+          href="/changelog"
+          className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+        >
+          v1.0.0 &middot; Changelog
+        </Link>
       </main>
     </div>
   );
