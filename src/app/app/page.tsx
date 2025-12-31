@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import LogoutButton from './logout-button'
 import TimeblockApp from './timeblock-app'
 
 export default async function AppPage() {
@@ -11,5 +10,5 @@ export default async function AppPage() {
     redirect('/login')
   }
 
-  return <TimeblockApp userEmail={user.email || ''} />
+  return <TimeblockApp />
 }

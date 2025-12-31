@@ -92,7 +92,7 @@ export function isDateColumn(columnId: KanbanColumnId): boolean {
 export interface TaskUpdate {
   taskInfo?: {
     state?: 'todo' | 'done' | 'canceled'
-    scheduleDate?: string // Use empty string '' to clear
+    scheduleDate?: string // API doesn't support clearing (no null/empty)
   }
   markdown?: string
 }

@@ -43,8 +43,10 @@ export default function Column({
   const canDrop = useCallback(() => {
     if (!draggingTask) return false
     const isDailyNoteTask = draggingTask.location?.type === 'dailyNote'
-    // Daily note tasks cannot be dropped into inbox
-    if (id === 'inbox' && isDailyNoteTask) return false
+    const isScheduledInboxTask = draggingTask.location?.type === 'inbox' && draggingTask.taskInfo?.scheduleDate
+    // Daily note tasks and scheduled inbox tasks cannot be dropped into inbox
+    // (Craft API doesn't support clearing scheduleDate)
+    if (id === 'inbox' && (isDailyNoteTask || isScheduledInboxTask)) return false
     return true
   }, [draggingTask, id])
 

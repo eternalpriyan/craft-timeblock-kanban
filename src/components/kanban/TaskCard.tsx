@@ -3,15 +3,31 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { CraftTask } from '@/lib/craft/types'
 
-// Strip markdown checkbox patterns from task text
-function stripCheckboxMarkdown(text: string): string {
+// Strip markdown checkbox patterns and Craft-specific markup from task text
+function stripMarkup(text: string): string {
   return text
     .trim()                                              // Remove leading/trailing whitespace first
     .replace(/^[\s\u200B\uFEFF]*/, '')                   // Remove any zero-width chars at start
     .replace(/^[-–—•*+]\s*\[[ xX]?\]\s*/i, '')          // - [ ] or - [x] with various dash types
     .replace(/^\[[ xX]?\]\s*/i, '')                      // [ ] or [x] at start without bullet
     .replace(/^[-–—•*+]\s+/i, '')                        // Plain bullet without checkbox
+    .replace(/<highlight[^>]*>/gi, '')                   // Strip <highlight ...> opening tags
+    .replace(/<\/highlight>/gi, '')                      // Strip </highlight> closing tags
     .trim()
+}
+
+// Alias for backwards compatibility
+function stripCheckboxMarkdown(text: string): string {
+  return stripMarkup(text)
+}
+
+// Format ISO date to readable format (e.g., "31 Jan 2026")
+function formatDate(isoDate: string): string {
+  const date = new Date(isoDate + 'T00:00:00')
+  const day = date.getDate()
+  const month = date.toLocaleDateString('en-US', { month: 'short' })
+  const year = date.getFullYear()
+  return `${day} ${month} ${year}`
 }
 
 // Render text with markdown links underlined
@@ -239,7 +255,7 @@ export default function TaskCard({
           ) : (
             <p
               onDoubleClick={handleDoubleClick}
-              className={`text-sm text-slate-900 dark:text-zinc-100 cursor-text ${isCompleted ? 'line-through' : ''}`}
+              className={`text-sm text-slate-900 dark:text-zinc-100 cursor-text break-words ${isCompleted ? 'line-through' : ''}`}
             >
               {renderWithLinks(task.markdown)}
             </p>
@@ -258,7 +274,7 @@ export default function TaskCard({
 
             {/* Schedule date if present */}
             {task.taskInfo?.scheduleDate && (
-              <span>{task.taskInfo.scheduleDate}</span>
+              <span>{formatDate(task.taskInfo.scheduleDate)}</span>
             )}
           </div>
         </div>

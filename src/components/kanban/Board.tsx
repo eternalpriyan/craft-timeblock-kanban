@@ -291,8 +291,8 @@ export default function Board({ viewMode }: BoardProps) {
         return
       }
 
-      // Shift+Space: New task
-      if (e.key === ' ' && e.shiftKey) {
+      // Spacebar: New task
+      if (e.key === ' ') {
         e.preventDefault()
         const todayCol = viewMode === 'standard' ? 'today' : getTodayISO()
         setCreateInColumn(todayCol)
@@ -533,13 +533,10 @@ export default function Board({ viewMode }: BoardProps) {
 
     try {
       if (targetColumn === 'inbox') {
-        if (isDailyNoteTask) {
-          console.error('[kanban] Cannot move daily note task to inbox')
-          loadTasks() // Revert
+        // Block at Column level, but fallback check here
+        if (isDailyNoteTask || (isInboxTask && task.taskInfo?.scheduleDate)) {
+          loadTasks() // Revert - API doesn't support unscheduling
           return
-        }
-        if (isInboxTask) {
-          await updateTask(task.id, { taskInfo: { scheduleDate: '' } }, apiKey)
         }
       } else if (targetColumn === 'backlog') {
         const yesterday = new Date()
