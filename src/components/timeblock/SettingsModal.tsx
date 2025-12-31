@@ -70,29 +70,28 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
     await updateSettings({ theme })
   }
 
-  const handleApiUrlBlur = async () => {
-    if (apiUrl !== (settings.craft_api_url || '')) {
-      setSaving(true)
-      try {
-        await updateSettings({ craft_api_url: apiUrl || null })
-      } catch {
-        setApiUrl(settings.craft_api_url || '')
-      }
-      setSaving(false)
+  const handleSaveCredentials = async () => {
+    const urlChanged = apiUrl !== (settings.craft_api_url || '')
+    const keyChanged = apiKey !== (settings.craft_api_key || '')
+
+    if (!urlChanged && !keyChanged) return
+
+    setSaving(true)
+    try {
+      const updates: { craft_api_url?: string | null; craft_api_key?: string | null } = {}
+      if (urlChanged) updates.craft_api_url = apiUrl || null
+      if (keyChanged) updates.craft_api_key = apiKey || null
+      await updateSettings(updates)
+    } catch {
+      setApiUrl(settings.craft_api_url || '')
+      setApiKey(settings.craft_api_key || '')
     }
+    setSaving(false)
   }
 
-  const handleApiKeyBlur = async () => {
-    if (apiKey !== (settings.craft_api_key || '')) {
-      setSaving(true)
-      try {
-        await updateSettings({ craft_api_key: apiKey || null })
-      } catch {
-        setApiKey(settings.craft_api_key || '')
-      }
-      setSaving(false)
-    }
-  }
+  const hasCredentialChanges =
+    apiUrl !== (settings.craft_api_url || '') ||
+    apiKey !== (settings.craft_api_key || '')
 
   const handleTimeRangeChange = async (field: 'start_hour' | 'end_hour', value: number) => {
     await updateSettings({ [field]: value })
@@ -202,40 +201,52 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                   type="url"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  onBlur={handleApiUrlBlur}
                   placeholder="https://connect.craft.do/links/YOUR_KEY/api/v1"
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
                 />
               </div>
 
               {/* Craft API Key */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="block text-sm text-slate-500 dark:text-zinc-400 mb-2">Craft API Key</label>
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  onBlur={handleApiKeyBlur}
-                  placeholder="Your Bearer token"
+                  placeholder="Your API key"
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
                 />
-                {saving && <p className="mt-1 text-xs text-slate-400 dark:text-zinc-500">Saving...</p>}
-                <p className="mt-1 text-xs text-slate-500 dark:text-zinc-500">
-                  Stored locally in your browser for security
+              </div>
+
+              {/* Save Button */}
+              <div className="mb-6">
+                <button
+                  onClick={handleSaveCredentials}
+                  disabled={!hasCredentialChanges || saving}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {saving ? 'Saving...' : 'Save Credentials'}
+                </button>
+                <p className="mt-3 text-xs text-slate-500 dark:text-zinc-500">
+                  Your API URL is stored in our database, but it cannot be used without your API Key which is stored locally in your browser. This ensures we cannot access your Daily Notes.
                 </p>
-                <div className="mt-6 text-xs text-slate-500 dark:text-zinc-400">
-                  <p className="font-medium mb-2">How to get your API credentials:</p>
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>In Craft Docs Sidebar, click <strong>Imagine</strong></li>
-                    <li>Click the <strong>+ icon</strong></li>
-                    <li>Select <strong>New API Connection</strong></li>
-                    <li>Choose <strong>Connect Daily Notes & Tasks</strong></li>
-                    <li>Set Access Mode to <strong>Private (API Key)</strong></li>
-                    <li>Set Permission Level to <strong>Read & Write</strong></li>
-                    <li>Copy the <strong>URL</strong> and paste above</li>
-                    <li>Copy the <strong>API Key</strong> and paste above</li>
-                  </ol>
-                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="mb-6 p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/50 text-xs text-slate-600 dark:text-zinc-400">
+                <p className="font-medium text-slate-700 dark:text-zinc-300 mb-3">How to get your API credentials:</p>
+                <ol className="list-decimal list-inside space-y-1.5">
+                  <li>In Craft Docs sidebar, click <strong>Imagine</strong></li>
+                  <li>Click the <strong>+</strong> icon</li>
+                  <li>Select <strong>New API Connection</strong></li>
+                  <li>Choose <strong>Connect Daily Notes & Tasks</strong></li>
+                  <li>Set permissions to <strong>Read and Write</strong></li>
+                  <li>Set Access Mode to <strong>API Key</strong></li>
+                  <li>Under API keys, click the <strong>+</strong> button</li>
+                  <li>Name your key and submit</li>
+                  <li>Copy the generated code into <strong>Craft API Key</strong> above</li>
+                  <li>Copy the URL field into <strong>Craft API URL</strong> above</li>
+                </ol>
               </div>
 
               {/* Footer */}
