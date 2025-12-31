@@ -417,7 +417,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">New task</span>
-                    <span className="text-slate-400 dark:text-zinc-500">Shift + Space</span>
+                    <span className="text-slate-400 dark:text-zinc-500">Space</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">Toggle all columns</span>
@@ -426,14 +426,6 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                   <div className="flex justify-between">
                     <span className="text-slate-700 dark:text-zinc-300">Toggle column 1-10</span>
                     <span className="text-slate-400 dark:text-zinc-500">1-9, 0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">Reload</span>
-                    <span className="text-slate-400 dark:text-zinc-500">R</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-700 dark:text-zinc-300">Show shortcuts</span>
-                    <span className="text-slate-400 dark:text-zinc-500">?</span>
                   </div>
                 </div>
                 <h3 className="text-sm text-slate-500 dark:text-zinc-400 mt-4 mb-3">7-Day View</h3>
