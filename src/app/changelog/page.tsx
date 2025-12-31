@@ -5,7 +5,7 @@ interface Release {
   date: string;
   title: string;
   changes: {
-    type: 'added' | 'changed' | 'fixed' | 'removed';
+    type: 'added' | 'changed' | 'fixed' | 'removed' | 'known';
     items: string[];
   }[];
 }
@@ -19,23 +19,21 @@ const releases: Release[] = [
       {
         type: 'added',
         items: [
-          "Timeblock view with drag-to-move and resize-to-adjust",
-          "Tasks Kanban view (Inbox, Backlog, Today)",
-          "Week Kanban view with 7-day layout",
-          "Calendar date picker with quick buttons",
-          "Keyboard shortcuts (V, Space, R, S, L)",
-          "Icon-based view switcher",
-          "Mobile device detection and blocker",
-          "Dark mode support with system preference",
-          "Split-knowledge authentication for security",
+          "Timeblock View - Visual timeline with drag-to-move and resize-to-adjust, now line indicator, unscheduled tasks list",
+          "Tasks Kanban View - 3-column layout (Inbox, Backlog, Today) with drag-and-drop",
+          "Week Kanban View - 7-day layout with week navigation",
+          "Date Picker - Quick buttons (Today, Tomorrow, Next Week) + calendar grid",
+          "Keyboard Shortcuts - V (cycle views), Space (new task), R (reload), S (settings), L (logout), 1-9/0 (toggle columns)",
+          "Settings - Theme (Light/Dark/System), timeline range, week start day, Craft API credentials",
+          "Security - Split-knowledge authentication (URL in Supabase, API key in browser)",
         ],
       },
       {
-        type: 'fixed',
+        type: 'known',
         items: [
-          "Timezone handling for date operations",
-          "Task card text overflow with long content",
-          "Date display format (human-readable)",
+          "Scheduled inbox tasks cannot be unscheduled (Craft API limitation)",
+          "Daily note tasks cannot be moved to Inbox",
+          "Mobile view not yet supported",
         ],
       },
     ],
@@ -47,6 +45,7 @@ const typeLabels = {
   changed: { label: 'Changed', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
   fixed: { label: 'Fixed', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
   removed: { label: 'Removed', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+  known: { label: 'Known Limitations', color: 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400' },
 };
 
 export default function ChangelogPage() {
