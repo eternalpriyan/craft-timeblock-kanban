@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { KanbanColumnId, CraftTask } from '@/lib/craft/types'
 import { createTask } from '@/lib/craft/api'
+import { useSettings } from '@/lib/settings/context'
 
 interface CreateTaskModalProps {
   targetColumn: KanbanColumnId
@@ -19,6 +20,9 @@ export default function CreateTaskModal({
   onClose,
   onCreated,
 }: CreateTaskModalProps) {
+  const { settings } = useSettings()
+  const apiKey = settings.craft_api_key
+
   const [title, setTitle] = useState('')
   const [taskType, setTaskType] = useState<'inbox' | 'dailyNote'>(
     targetColumn === 'inbox' ? 'inbox' : 'dailyNote'
@@ -45,7 +49,7 @@ export default function CreateTaskModal({
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || !apiKey) return
 
     setLoading(true)
     setError(null)
@@ -55,10 +59,10 @@ export default function CreateTaskModal({
       if (taskType === 'inbox') {
         // Create inbox task
         const scheduleDate = targetColumn === 'inbox' ? undefined : date
-        newTask = await createTask(title.trim(), { type: 'inbox' }, scheduleDate)
+        newTask = await createTask(title.trim(), { type: 'inbox' }, apiKey, scheduleDate)
       } else {
         // Create daily note task
-        newTask = await createTask(title.trim(), { type: 'dailyNote', date })
+        newTask = await createTask(title.trim(), { type: 'dailyNote', date }, apiKey)
       }
       onCreated(newTask, targetColumn)
     } catch (err) {
@@ -66,7 +70,7 @@ export default function CreateTaskModal({
       setError(err instanceof Error ? err.message : 'Failed to create task')
       setLoading(false)
     }
-  }, [title, taskType, date, targetColumn, onCreated])
+  }, [title, taskType, date, targetColumn, onCreated, apiKey])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

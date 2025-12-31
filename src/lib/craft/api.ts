@@ -2,6 +2,14 @@ import { CraftBlock, CraftTask, TaskScope, TaskLocation, TaskUpdate } from './ty
 
 const PROXY_BASE = '/api/craft'
 
+// Helper to build headers with API key
+function craftHeaders(apiKey: string): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    'X-Craft-API-Key': apiKey,
+  }
+}
+
 // Format date for API (YYYY-MM-DD or relative)
 export function formatDateForApi(date: Date): string {
   const today = new Date()
@@ -19,15 +27,19 @@ export function formatDateForApi(date: Date): string {
 }
 
 // Fetch blocks for a specific date
-export async function fetchBlocks(date: Date): Promise<CraftBlock> {
+export async function fetchBlocks(date: Date, apiKey: string): Promise<CraftBlock> {
   const dateParam = formatDateForApi(date)
-  const response = await fetch(`${PROXY_BASE}/blocks?date=${dateParam}`)
+  const response = await fetch(`${PROXY_BASE}/blocks?date=${dateParam}`, {
+    headers: craftHeaders(apiKey),
+  })
 
   if (!response.ok) {
     if (response.status === 404) {
       // No daily note exists - create one
-      await createDailyNote(dateParam)
-      const retryResponse = await fetch(`${PROXY_BASE}/blocks?date=${dateParam}`)
+      await createDailyNote(dateParam, apiKey)
+      const retryResponse = await fetch(`${PROXY_BASE}/blocks?date=${dateParam}`, {
+        headers: craftHeaders(apiKey),
+      })
       if (!retryResponse.ok) {
         throw new Error(`Failed to fetch blocks: ${retryResponse.status}`)
       }
@@ -40,10 +52,10 @@ export async function fetchBlocks(date: Date): Promise<CraftBlock> {
 }
 
 // Create a daily note for a specific date
-async function createDailyNote(dateParam: string): Promise<void> {
+async function createDailyNote(dateParam: string, apiKey: string): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/blocks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       blocks: [{ type: 'text', markdown: '' }],
       position: { position: 'end', date: dateParam },
@@ -58,11 +70,12 @@ async function createDailyNote(dateParam: string): Promise<void> {
 // Update a block's markdown content
 export async function updateBlock(
   blockId: string,
-  markdown: string
+  markdown: string,
+  apiKey: string
 ): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/blocks`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       blocks: [{ id: blockId, markdown }],
     }),
@@ -80,11 +93,12 @@ export async function updateBlock(
 // Insert a new block
 export async function insertBlock(
   markdown: string,
+  apiKey: string,
   date: string = 'today'
 ): Promise<CraftBlock[]> {
   const response = await fetch(`${PROXY_BASE}/blocks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       blocks: [{ type: 'text', markdown }],
       position: { position: 'end', date },
@@ -100,10 +114,10 @@ export async function insertBlock(
 }
 
 // Delete blocks
-export async function deleteBlocks(blockIds: string[]): Promise<void> {
+export async function deleteBlocks(blockIds: string[], apiKey: string): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/blocks`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({ blockIds }),
   })
 
@@ -115,11 +129,12 @@ export async function deleteBlocks(blockIds: string[]): Promise<void> {
 // Toggle task checkbox (done/todo)
 export async function toggleTask(
   taskId: string,
-  done: boolean
+  done: boolean,
+  apiKey: string
 ): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/tasks`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       tasksToUpdate: [
         {
@@ -140,8 +155,10 @@ export async function toggleTask(
 // ============================================
 
 // Fetch tasks by scope
-export async function fetchTasks(scope: TaskScope): Promise<CraftTask[]> {
-  const response = await fetch(`${PROXY_BASE}/tasks?scope=${scope}`)
+export async function fetchTasks(scope: TaskScope, apiKey: string): Promise<CraftTask[]> {
+  const response = await fetch(`${PROXY_BASE}/tasks?scope=${scope}`, {
+    headers: craftHeaders(apiKey),
+  })
 
   if (!response.ok) {
     throw new Error(`Failed to fetch tasks: ${response.status}`)
@@ -154,11 +171,12 @@ export async function fetchTasks(scope: TaskScope): Promise<CraftTask[]> {
 // Update task (scheduleDate, state, markdown)
 export async function updateTask(
   taskId: string,
-  updates: TaskUpdate
+  updates: TaskUpdate,
+  apiKey: string
 ): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/tasks`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       tasksToUpdate: [{ id: taskId, ...updates }],
     }),
@@ -174,11 +192,12 @@ export async function updateTask(
 // Move daily note task to a different date (physical block relocation)
 export async function moveDailyNoteTask(
   taskId: string,
-  targetDate: string
+  targetDate: string,
+  apiKey: string
 ): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/blocks/move`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       blockIds: [taskId],
       position: { position: 'end', date: targetDate },
@@ -196,11 +215,12 @@ export async function moveDailyNoteTask(
 export async function createTask(
   markdown: string,
   location: TaskLocation,
+  apiKey: string,
   scheduleDate?: string
 ): Promise<CraftTask> {
   const response = await fetch(`${PROXY_BASE}/tasks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({
       tasks: [
         {
@@ -223,10 +243,10 @@ export async function createTask(
 }
 
 // Delete tasks
-export async function deleteTasks(taskIds: string[]): Promise<void> {
+export async function deleteTasks(taskIds: string[], apiKey: string): Promise<void> {
   const response = await fetch(`${PROXY_BASE}/tasks`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: craftHeaders(apiKey),
     body: JSON.stringify({ idsToDelete: taskIds }),
   })
 

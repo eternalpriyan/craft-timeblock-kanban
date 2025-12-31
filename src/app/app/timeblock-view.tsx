@@ -21,12 +21,12 @@ export default function TimeblockView() {
     )
   }
 
-  // No API URL configured
-  if (!settings.craft_api_url) {
+  // No API URL or Key configured
+  if (!settings.craft_api_url || !settings.craft_api_key) {
     return (
       <div className="text-center py-8">
         <p className="text-slate-600 dark:text-slate-400 mb-2">
-          Configure your Craft API URL in settings to see your timeblocks.
+          Configure your Craft API URL and API Key in settings to see your timeblocks.
         </p>
       </div>
     )
@@ -43,6 +43,7 @@ export default function TimeblockView() {
         onError={setError}
         startHour={settings.start_hour}
         endHour={settings.end_hour}
+        apiKey={settings.craft_api_key}
       />
     </>
   )
