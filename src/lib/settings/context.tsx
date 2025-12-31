@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { UserSettings, DEFAULT_SETTINGS } from './types'
+import { UserSettings, ServerSettings, DEFAULT_SETTINGS, CRAFT_API_KEY_STORAGE_KEY } from './types'
 
 interface SettingsContextValue {
   settings: UserSettings
@@ -12,16 +12,34 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
 
+// Helper to safely access localStorage (SSR-safe)
+function getLocalApiKey(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(CRAFT_API_KEY_STORAGE_KEY)
+}
+
+function setLocalApiKey(key: string | null): void {
+  if (typeof window === 'undefined') return
+  if (key === null) {
+    localStorage.removeItem(CRAFT_API_KEY_STORAGE_KEY)
+  } else {
+    localStorage.setItem(CRAFT_API_KEY_STORAGE_KEY, key)
+  }
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
 
   const refreshSettings = useCallback(async () => {
     try {
+      // Fetch server settings from Supabase
       const res = await fetch('/api/settings')
       if (res.ok) {
-        const data = await res.json()
-        setSettings(data)
+        const serverSettings: ServerSettings = await res.json()
+        // Merge with localStorage API key
+        const apiKey = getLocalApiKey()
+        setSettings({ ...serverSettings, craft_api_key: apiKey })
       }
     } catch (err) {
       console.error('[settings] Failed to load:', err)
@@ -34,21 +52,30 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     // Optimistic update
     setSettings(prev => ({ ...prev, ...updates }))
 
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      })
+    // Handle API key separately (localStorage)
+    if ('craft_api_key' in updates) {
+      setLocalApiKey(updates.craft_api_key ?? null)
+    }
 
-      if (!res.ok) {
-        // Revert on error
-        await refreshSettings()
-        throw new Error('Failed to save settings')
+    // Send other updates to server (exclude craft_api_key)
+    const { craft_api_key: _, ...serverUpdates } = updates
+    if (Object.keys(serverUpdates).length > 0) {
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(serverUpdates),
+        })
+
+        if (!res.ok) {
+          // Revert on error
+          await refreshSettings()
+          throw new Error('Failed to save settings')
+        }
+      } catch (err) {
+        console.error('[settings] Failed to update:', err)
+        throw err
       }
-    } catch (err) {
-      console.error('[settings] Failed to update:', err)
-      throw err
     }
   }, [refreshSettings])
 

@@ -1,17 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { ServerSettings } from '@/lib/settings/types'
 
-export interface UserSettings {
-  craft_api_url: string | null
-  theme: 'dark' | 'light'
-  start_hour: number
-  end_hour: number
-}
-
-const DEFAULT_SETTINGS: Omit<UserSettings, 'craft_api_url'> = {
+const DEFAULT_SETTINGS: Omit<ServerSettings, 'craft_api_url'> = {
   theme: 'dark',
   start_hour: 6,
   end_hour: 22,
+  kanban_view_mode: 'standard',
+  monday_first: true,
 }
 
 export async function GET() {
@@ -29,7 +25,9 @@ export async function GET() {
     theme: metadata.theme || DEFAULT_SETTINGS.theme,
     start_hour: metadata.start_hour ?? DEFAULT_SETTINGS.start_hour,
     end_hour: metadata.end_hour ?? DEFAULT_SETTINGS.end_hour,
-  } as UserSettings)
+    kanban_view_mode: metadata.kanban_view_mode || DEFAULT_SETTINGS.kanban_view_mode,
+    monday_first: metadata.monday_first ?? DEFAULT_SETTINGS.monday_first,
+  } as ServerSettings)
 }
 
 export async function PUT(request: NextRequest) {
@@ -41,7 +39,7 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { craft_api_url, theme, start_hour, end_hour } = body
+  const { craft_api_url, theme, start_hour, end_hour, kanban_view_mode, monday_first } = body
 
   // Validate URL format if provided
   if (craft_api_url && !craft_api_url.startsWith('https://connect.craft.do/links/')) {
@@ -74,12 +72,22 @@ export async function PUT(request: NextRequest) {
     )
   }
 
+  // Validate kanban_view_mode if provided
+  if (kanban_view_mode && !['standard', 'week'].includes(kanban_view_mode)) {
+    return NextResponse.json(
+      { error: 'Invalid kanban_view_mode value' },
+      { status: 400 }
+    )
+  }
+
   // Build update object with only provided fields
   const updateData: Record<string, unknown> = {}
   if (craft_api_url !== undefined) updateData.craft_api_url = craft_api_url
   if (theme !== undefined) updateData.theme = theme
   if (start_hour !== undefined) updateData.start_hour = start_hour
   if (end_hour !== undefined) updateData.end_hour = end_hour
+  if (kanban_view_mode !== undefined) updateData.kanban_view_mode = kanban_view_mode
+  if (monday_first !== undefined) updateData.monday_first = monday_first
 
   const { error: updateError } = await supabase.auth.updateUser({
     data: updateData,

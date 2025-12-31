@@ -17,6 +17,7 @@ interface TimelineProps {
   onError?: (message: string) => void
   startHour?: number
   endHour?: number
+  apiKey: string
 }
 
 function formatDateTitle(date: Date): string {
@@ -40,7 +41,7 @@ function isCurrent(block: Timeblock): boolean {
   return currentHour >= block.start && currentHour < block.end
 }
 
-export default function Timeline({ onError, startHour = 6, endHour = 22 }: TimelineProps) {
+export default function Timeline({ onError, startHour = 6, endHour = 22, apiKey }: TimelineProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [scheduled, setScheduled] = useState<Timeblock[]>([])
   const [unscheduled, setUnscheduled] = useState<UnscheduledTask[]>([])
@@ -58,11 +59,15 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
   const totalHours = endHour - startHour
 
   const loadSchedule = useCallback(async () => {
+    if (!apiKey) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
 
     try {
-      const data = await fetchBlocks(currentDate)
+      const data = await fetchBlocks(currentDate, apiKey)
       const { scheduled: s, unscheduled: u } = parseBlocks(data)
       setScheduled(s)
       setUnscheduled(u)
@@ -73,7 +78,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     } finally {
       setLoading(false)
     }
-  }, [currentDate, onError])
+  }, [currentDate, onError, apiKey])
 
   useEffect(() => {
     loadSchedule()
@@ -147,7 +152,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     )
 
     try {
-      await toggleTask(blockId, checked)
+      await toggleTask(blockId, checked, apiKey)
     } catch (err) {
       setScheduled((prev) =>
         prev.map((block) =>
@@ -166,7 +171,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     )
 
     try {
-      await toggleTask(taskId, checked)
+      await toggleTask(taskId, checked, apiKey)
     } catch (err) {
       setUnscheduled((prev) =>
         prev.map((task) =>
@@ -186,7 +191,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     setHoveredBlock(null)
 
     try {
-      await deleteBlocks([block.id])
+      await deleteBlocks([block.id], apiKey)
     } catch (err) {
       // Revert on error
       loadSchedule()
@@ -203,7 +208,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     setHoveredTask(null)
 
     try {
-      await deleteBlocks([task.id])
+      await deleteBlocks([task.id], apiKey)
     } catch (err) {
       loadSchedule()
       onError?.(err instanceof Error ? err.message : 'Failed to delete task')
@@ -305,7 +310,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
 
     try {
       const dateParam = formatDateForApi(currentDate)
-      const items = await insertBlock(markdown, dateParam)
+      const items = await insertBlock(markdown, apiKey, dateParam)
       // Update with real ID
       if (items[0]?.id) {
         setScheduled(prev =>
@@ -337,7 +342,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     try {
       const dateParam = formatDateForApi(currentDate)
       // Use createTask API so task appears in kanban
-      const task = await createTask(markdown, { type: 'dailyNote', date: dateParam })
+      const task = await createTask(markdown, { type: 'dailyNote', date: dateParam }, apiKey)
       if (task?.id) {
         setUnscheduled(prev =>
           prev.map(t => t.id === tempId ? { ...t, id: task.id } : t)
@@ -362,7 +367,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     )
 
     try {
-      await updateBlock(taskId, newMarkdown)
+      await updateBlock(taskId, newMarkdown, apiKey)
     } catch (err) {
       loadSchedule() // Revert on error
       onError?.(err instanceof Error ? err.message : 'Failed to edit task')
@@ -385,7 +390,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     )
 
     try {
-      await updateBlock(blockId, newMarkdown)
+      await updateBlock(blockId, newMarkdown, apiKey)
     } catch (err) {
       loadSchedule() // Revert on error
       onError?.(err instanceof Error ? err.message : 'Failed to edit timeblock')
@@ -444,7 +449,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
 
     try {
       const newMarkdown = replaceTimeInMarkdown(block.originalMarkdown, pending.newStart, pending.newEnd)
-      await updateBlock(block.id, newMarkdown)
+      await updateBlock(block.id, newMarkdown, apiKey)
       // Update originalMarkdown in state for subsequent edits
       setScheduled(prev =>
         prev.map(b =>
@@ -515,7 +520,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
       setScheduled(prev => [...prev, tempBlock].sort((a, b) => a.start - b.start))
 
       // Update via API
-      await updateBlock(task.id, newMarkdown)
+      await updateBlock(task.id, newMarkdown, apiKey)
     } catch (err) {
       console.error('[Timeline] Drop failed:', err)
       loadSchedule() // Revert on error
@@ -523,7 +528,7 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
     }
 
     setDraggingTask(null)
-  }, [unscheduled, startHour, endHour, loadSchedule, onError])
+  }, [unscheduled, startHour, endHour, loadSchedule, onError, apiKey])
 
   // Handle dropping timeblock to unscheduled
   const handleDropToUnscheduled = useCallback(async (blockId: string) => {
@@ -548,13 +553,13 @@ export default function Timeline({ onError, startHour = 6, endHour = 22 }: Timel
       setUnscheduled(prev => [newTask, ...prev])
 
       // Update via API
-      await updateBlock(block.id, newMarkdown)
+      await updateBlock(block.id, newMarkdown, apiKey)
     } catch (err) {
       console.error('[Timeline] Unschedule failed:', err)
       loadSchedule() // Revert on error
       onError?.(err instanceof Error ? err.message : 'Failed to unschedule task')
     }
-  }, [scheduled, loadSchedule, onError])
+  }, [scheduled, loadSchedule, onError, apiKey])
 
   // Generate hour lines
   const hourLines = []

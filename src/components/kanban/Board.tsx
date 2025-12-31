@@ -394,16 +394,20 @@ export default function Board({ viewMode }: BoardProps) {
     setWeekStartDate(getWeekStartDate(mondayFirst))
   }, [mondayFirst])
 
+  // Get API key from settings
+  const apiKey = settings.craft_api_key
+
   // Fetch all tasks
   const loadTasks = useCallback(async () => {
+    if (!apiKey) return
     setLoading(true)
     setError(null)
 
     try {
       const [active, upcoming, inbox] = await Promise.all([
-        fetchTasks('active'),
-        fetchTasks('upcoming'),
-        fetchTasks('inbox'),
+        fetchTasks('active', apiKey),
+        fetchTasks('upcoming', apiKey),
+        fetchTasks('inbox', apiKey),
       ])
 
       const taskMap = new Map<string, CraftTask>()
@@ -417,7 +421,7 @@ export default function Board({ viewMode }: BoardProps) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [apiKey])
 
   useEffect(() => {
     loadTasks()
@@ -425,8 +429,9 @@ export default function Board({ viewMode }: BoardProps) {
 
   // Handle task toggle
   const handleToggleTask = useCallback(async (taskId: string, done: boolean) => {
+    if (!apiKey) return
     try {
-      await updateTask(taskId, { taskInfo: { state: done ? 'done' : 'todo' } })
+      await updateTask(taskId, { taskInfo: { state: done ? 'done' : 'todo' } }, apiKey)
       if (done) {
         setAllTasks((prev) => prev.filter((t) => t.id !== taskId))
       }
@@ -434,23 +439,25 @@ export default function Board({ viewMode }: BoardProps) {
       console.error('[kanban] Toggle failed:', err)
       loadTasks()
     }
-  }, [loadTasks])
+  }, [loadTasks, apiKey])
 
   // Handle task delete
   const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (!apiKey) return
     try {
-      await deleteTasks([taskId])
+      await deleteTasks([taskId], apiKey)
       setAllTasks((prev) => prev.filter((t) => t.id !== taskId))
     } catch (err) {
       console.error('[kanban] Delete failed:', err)
       loadTasks()
     }
-  }, [loadTasks])
+  }, [loadTasks, apiKey])
 
   // Handle task edit
   const handleEditTask = useCallback(async (taskId: string, newMarkdown: string) => {
+    if (!apiKey) return
     try {
-      await updateTask(taskId, { markdown: newMarkdown })
+      await updateTask(taskId, { markdown: newMarkdown }, apiKey)
       setAllTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, markdown: newMarkdown } : t))
       )
@@ -458,7 +465,7 @@ export default function Board({ viewMode }: BoardProps) {
       console.error('[kanban] Edit failed:', err)
       loadTasks()
     }
-  }, [loadTasks])
+  }, [loadTasks, apiKey])
 
   // Handle drag start
   const handleDragStart = useCallback((task: CraftTask) => {
@@ -472,6 +479,7 @@ export default function Board({ viewMode }: BoardProps) {
 
   // Handle drop with optimistic update
   const handleDrop = useCallback(async (task: CraftTask, targetColumn: KanbanColumnId) => {
+    if (!apiKey) return
     const isInboxTask = task.location?.type === 'inbox'
     const isDailyNoteTask = task.location?.type === 'dailyNote'
 
@@ -531,7 +539,7 @@ export default function Board({ viewMode }: BoardProps) {
           return
         }
         if (isInboxTask) {
-          await updateTask(task.id, { taskInfo: { scheduleDate: '' } })
+          await updateTask(task.id, { taskInfo: { scheduleDate: '' } }, apiKey)
         }
       } else if (targetColumn === 'backlog') {
         const yesterday = new Date()
@@ -539,9 +547,9 @@ export default function Board({ viewMode }: BoardProps) {
         const yesterdayISO = dateToISO(yesterday)
 
         if (isInboxTask) {
-          await updateTask(task.id, { taskInfo: { scheduleDate: yesterdayISO } })
+          await updateTask(task.id, { taskInfo: { scheduleDate: yesterdayISO } }, apiKey)
         } else if (isDailyNoteTask) {
-          await moveDailyNoteTask(task.id, yesterdayISO)
+          await moveDailyNoteTask(task.id, yesterdayISO, apiKey)
         }
       } else if (targetColumn === 'future') {
         const futureDate = new Date()
@@ -549,30 +557,30 @@ export default function Board({ viewMode }: BoardProps) {
         const futureISO = dateToISO(futureDate)
 
         if (isInboxTask) {
-          await updateTask(task.id, { taskInfo: { scheduleDate: futureISO } })
+          await updateTask(task.id, { taskInfo: { scheduleDate: futureISO } }, apiKey)
         } else if (isDailyNoteTask) {
-          await moveDailyNoteTask(task.id, futureISO)
+          await moveDailyNoteTask(task.id, futureISO, apiKey)
         }
       } else if (targetColumn === 'today') {
         const todayISO = getTodayISO()
         if (isInboxTask) {
-          await updateTask(task.id, { taskInfo: { scheduleDate: todayISO } })
+          await updateTask(task.id, { taskInfo: { scheduleDate: todayISO } }, apiKey)
         } else if (isDailyNoteTask) {
-          await moveDailyNoteTask(task.id, todayISO)
+          await moveDailyNoteTask(task.id, todayISO, apiKey)
         }
       } else if (isDateColumn(targetColumn)) {
         const targetDateISO = targetColumn
         if (isInboxTask) {
-          await updateTask(task.id, { taskInfo: { scheduleDate: targetDateISO } })
+          await updateTask(task.id, { taskInfo: { scheduleDate: targetDateISO } }, apiKey)
         } else if (isDailyNoteTask) {
-          await moveDailyNoteTask(task.id, targetDateISO)
+          await moveDailyNoteTask(task.id, targetDateISO, apiKey)
         }
       }
     } catch (err) {
       console.error('[kanban] Drop failed:', err)
       loadTasks() // Revert on error
     }
-  }, [columns, loadTasks])
+  }, [columns, loadTasks, apiKey])
 
   // Handle create task
   const handleCreateTask = useCallback((columnId: KanbanColumnId) => {

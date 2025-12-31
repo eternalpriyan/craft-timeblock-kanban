@@ -45,11 +45,20 @@ async function handleRequest(
     )
   }
 
-  // Get Craft API URL from user metadata
+  // Get Craft API URL from user metadata (Supabase)
   const craftApiUrl = user.user_metadata?.craft_api_url as string | undefined
   if (!craftApiUrl) {
     return NextResponse.json(
       { error: 'Craft API URL not configured. Please set it in settings.' },
+      { status: 400 }
+    )
+  }
+
+  // Get API key from request header (sent from client's localStorage)
+  const craftApiKey = request.headers.get('X-Craft-API-Key')
+  if (!craftApiKey) {
+    return NextResponse.json(
+      { error: 'Craft API Key not configured. Please set it in settings.' },
       { status: 400 }
     )
   }
@@ -60,10 +69,11 @@ async function handleRequest(
   const searchParams = request.nextUrl.searchParams.toString()
   const targetUrl = `${craftApiUrl}/${pathString}${searchParams ? `?${searchParams}` : ''}`
 
-  // Forward request
+  // Forward request with Bearer token
   const headers: HeadersInit = {
     'Content-Type': request.headers.get('Content-Type') || 'application/json',
     'Accept': request.headers.get('Accept') || 'application/json',
+    'Authorization': `Bearer ${craftApiKey}`,
   }
 
   const fetchOptions: RequestInit = {

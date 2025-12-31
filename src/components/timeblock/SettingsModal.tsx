@@ -24,12 +24,17 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
   const { settings, updateSettings } = useSettings()
   const [activeTab, setActiveTab] = useState<SettingsTab>(defaultTab)
   const [apiUrl, setApiUrl] = useState('')
+  const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setApiUrl(settings.craft_api_url || '')
   }, [settings.craft_api_url])
+
+  useEffect(() => {
+    setApiKey(settings.craft_api_key || '')
+  }, [settings.craft_api_key])
 
   useEffect(() => {
     if (isOpen) {
@@ -72,6 +77,18 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
         await updateSettings({ craft_api_url: apiUrl || null })
       } catch {
         setApiUrl(settings.craft_api_url || '')
+      }
+      setSaving(false)
+    }
+  }
+
+  const handleApiKeyBlur = async () => {
+    if (apiKey !== (settings.craft_api_key || '')) {
+      setSaving(true)
+      try {
+        await updateSettings({ craft_api_key: apiKey || null })
+      } catch {
+        setApiKey(settings.craft_api_key || '')
       }
       setSaving(false)
     }
@@ -179,7 +196,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
               </div>
 
               {/* Craft API URL */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="block text-sm text-slate-500 dark:text-zinc-400 mb-2">Craft API URL</label>
                 <input
                   type="url"
@@ -189,17 +206,34 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                   placeholder="https://connect.craft.do/links/YOUR_KEY/api/v1"
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
                 />
+              </div>
+
+              {/* Craft API Key */}
+              <div className="mb-6">
+                <label className="block text-sm text-slate-500 dark:text-zinc-400 mb-2">Craft API Key</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  onBlur={handleApiKeyBlur}
+                  placeholder="Your Bearer token"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
+                />
                 {saving && <p className="mt-1 text-xs text-slate-400 dark:text-zinc-500">Saving...</p>}
+                <p className="mt-1 text-xs text-slate-500 dark:text-zinc-500">
+                  Stored locally in your browser for security
+                </p>
                 <div className="mt-6 text-xs text-slate-500 dark:text-zinc-400">
-                  <p className="font-medium mb-2">How to get your API URL:</p>
+                  <p className="font-medium mb-2">How to get your API credentials:</p>
                   <ol className="list-decimal list-inside space-y-1">
                     <li>In Craft Docs Sidebar, click <strong>Imagine</strong></li>
                     <li>Click the <strong>+ icon</strong></li>
                     <li>Select <strong>New API Connection</strong></li>
                     <li>Choose <strong>Connect Daily Notes & Tasks</strong></li>
-                    <li>Set Access Mode to <strong>Public</strong></li>
+                    <li>Set Access Mode to <strong>Private (API Key)</strong></li>
                     <li>Set Permission Level to <strong>Read & Write</strong></li>
-                    <li>Copy the URL and paste above</li>
+                    <li>Copy the <strong>URL</strong> and paste above</li>
+                    <li>Copy the <strong>API Key</strong> and paste above</li>
                   </ol>
                 </div>
               </div>
