@@ -26,6 +26,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
   const [apiUrl, setApiUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
+  const [credentialError, setCredentialError] = useState<string | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -76,17 +77,40 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
 
     if (!urlChanged && !keyChanged) return
 
+    // Basic format validation
+    if (apiUrl && !apiUrl.startsWith('https://connect.craft.do/links/')) {
+      setCredentialError('Invalid API URL format. Should start with https://connect.craft.do/links/')
+      return
+    }
+
     setSaving(true)
+    setCredentialError(null)
+
     try {
+      // Save credentials first
       const updates: { craft_api_url?: string | null; craft_api_key?: string | null } = {}
       if (urlChanged) updates.craft_api_url = apiUrl || null
       if (keyChanged) updates.craft_api_key = apiKey || null
       await updateSettings(updates)
-    } catch {
-      setApiUrl(settings.craft_api_url || '')
-      setApiKey(settings.craft_api_key || '')
+
+      // Test the credentials with a simple API call
+      if (apiUrl && apiKey) {
+        const testRes = await fetch('/api/craft/blocks?date=today', {
+          headers: { 'X-Craft-API-Key': apiKey }
+        })
+
+        if (!testRes.ok) {
+          const data = await testRes.json().catch(() => ({}))
+          throw new Error(data.error || `API returned ${testRes.status}`)
+        }
+
+        // Success - reload to refresh all data
+        window.location.reload()
+      }
+    } catch (err) {
+      setCredentialError(err instanceof Error ? err.message : 'Failed to validate credentials')
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const hasCredentialChanges =
@@ -225,8 +249,13 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
                   disabled={!hasCredentialChanges || saving}
                   className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {saving ? 'Saving...' : 'Save Credentials'}
+                  {saving ? 'Validating...' : 'Save Credentials'}
                 </button>
+                {credentialError && (
+                  <p className="mt-2 text-xs text-red-500 dark:text-red-400">
+                    {credentialError}
+                  </p>
+                )}
                 <p className="mt-3 text-xs text-slate-500 dark:text-zinc-500">
                   Your API URL is stored in our database, but it cannot be used without your API Key which is stored locally in your browser. This ensures we cannot access your Daily Notes.
                 </p>
